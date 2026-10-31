@@ -1,8 +1,8 @@
-// Mặt đất Chùa: địa hình (bằng trong tường, đồi thoải bên ngoài), sân gạch đỏ Bát Tràng, lối đá, cỏ + hoa dại
-// lay theo gió (instanced), rừng cây ngoài tường (instanced).
+// Mặt đất Chùa: địa hình (bằng trong tường — gồm cả sân trên Đại Pháp Đường phía Bắc, đồi thoải bên ngoài), sân gạch
+// đỏ Bát Tràng, lối đá, cỏ + hoa dại lay theo gió (instanced), rừng cây ngoài tường (instanced).
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { MapDef } from '@shared/index';
+import { PHAP_DUONG, type MapDef } from '@shared/index';
 import { FLOWER_HEAD, FLOWER_STEM, GRASS_TUFT, coniferGeometry, foliageGeometry, leafMaterial, needleMaterial, scatter } from '../common/nature';
 import { windMaterial } from '../common/wind';
 import { kit } from '../kit';
@@ -30,8 +30,15 @@ export const PATHS: Seg[] = [
   [-30, 32, -30, 37, 2],
   [2, 31, 8, 31, 2],
   [-2, 31, -8, 31, 2],
+  // Hai đường lên sân Đại Pháp Đường: lối Đông qua nghi môn, lối Tây len giữa tường Chánh Điện và thớt chẻ củi.
+  [18, -12, 18, -42, 2.4],
+  [-12.4, -21, -12.4, -42, 1.6],
 ];
 const COURTYARD: Rect = [-15, 15, -20.2, -2.4];
+
+/** Khuôn viên trong tường bao (tính tới tâm tường): x ∈ [−40, 40], z ∈ [−100, 40] — gồm cả sân trên phía Bắc. */
+const YARD: Rect = [-40, 40, -100, 40];
+const PLAZA = PHAP_DUONG.plaza;
 
 /** Vùng không mọc cỏ (nhà, sân, ao…), tính thêm lề. */
 const NO_GRASS: Rect[] = [
@@ -46,6 +53,11 @@ const NO_GRASS: Rect[] = [
   [-33, -27, 33, 35],
   [-11, -7, 32.4, 34.6],
   [7, 11, 32.4, 34.6],
+  // Đại Pháp Đường (nền + bệ điện), sân lát đá trước điện, nền lát dưới hai nghi môn (dựng ở phapDuongYard.ts).
+  [-24, 24, -96, -57],
+  // Sân: lề X rộng hơn để bao cả bờ cây xén ngoài bó vỉa Đông/Tây (x = ±31) — cỏ không mọc xuyên bờ cây.
+  [PLAZA.minX - 1.8, PLAZA.maxX + 1.8, PLAZA.minZ, PLAZA.maxZ + 0.6],
+  ...PHAP_DUONG.gates.map(([gx, half]): Rect => [gx - half - 0.6, gx + half + 0.6, PLAZA.maxZ, PHAP_DUONG.gateZ + 1.3]),
 ];
 
 /** Bờ ao: lỗ khoét trên địa hình rộng hơn bán kính collider ao chừng này (đá kè che mép). */
@@ -67,10 +79,16 @@ function cutHole(m: THREE.Material, x: number, z: number, r: number): void {
   };
 }
 
+/** Khoảng cách (kiểu Chebyshev) từ điểm ra ngoài khuôn viên đã nới thêm `pad` mỗi phía; âm = còn ở trong. */
+function outsideYard(x: number, z: number, pad: number): number {
+  return Math.max(YARD[0] - pad - x, x - YARD[1] - pad, YARD[2] - pad - z, z - YARD[3] - pad);
+}
+
+/** Độ cao địa hình: bằng phẳng trong khuôn viên nới 4 m (x ∈ [−44, 44], z ∈ [−104, 44]), ngoài đó đồi thoải dần. */
 export function terrainHeight(x: number, z: number): number {
-  const edge = Math.max(Math.abs(x), Math.abs(z));
-  if (edge < 44) return 0;
-  const k = Math.min(1, (edge - 44) / 110);
+  const out = outsideYard(x, z, 4);
+  if (out < 0) return 0;
+  const k = Math.min(1, out / 110);
   const s = k * k * (3 - 2 * k);
   return s * 26 + Math.sin(x * 0.07) * Math.cos(z * 0.06) * 3 * s;
 }
@@ -129,7 +147,7 @@ export function buildGround(ctx: TempleCtx, map: MapDef): void {
     pos.setY(i, h);
     const n = noise(x * 0.12, z * 0.12);
     const n2 = noise(x * 0.5 + 10, z * 0.5);
-    if (Math.max(Math.abs(x), Math.abs(z)) < 41) {
+    if (outsideYard(x, z, 1) < 0) {
       c.copy(inside).lerp(inside2, n * 0.8);
       if (n2 > 0.82) c.lerp(dirt, 0.25);
     } else {
@@ -184,7 +202,7 @@ export function buildGround(ctx: TempleCtx, map: MapDef): void {
 
   // ── Cỏ + hoa dại (instanced, lay theo gió) ──
   const blocked = (x: number, z: number, pad: number) => {
-    if (Math.abs(x) > 39.2 || Math.abs(z) > 39.2) return true;
+    if (Math.abs(x) > 39.2 || z > 39.2 || z < -99.2) return true;
     if (inRect(x, z, COURTYARD, pad)) return true;
     for (const r of NO_GRASS) if (inRect(x, z, r, pad)) return true;
     for (const s of PATHS) if (nearSeg(x, z, s, pad + 0.15)) return true;
@@ -201,10 +219,11 @@ export function buildGround(ctx: TempleCtx, map: MapDef): void {
     }
     return false;
   };
-  const bounds = { minX: -39.5, maxX: 39.5, minZ: -39.5, maxZ: 39.5 };
+  const bounds = { minX: -39.5, maxX: 39.5, minZ: -99.5, maxZ: 39.5 };
   const grassMat = windMaterial(kit.matUnique('#ffffff', { roughness: 0.9 }), ctx.wind, 0.5);
   const [grass] = scatter(ctx.rng, [{ geometry: GRASS_TUFT, material: grassMat, colors: ['#6aa046', '#5e9340', '#78ad50', '#86b45a', '#669a48'] }], {
-    count: 5200,
+    // Khuôn viên mở rộng lên phía Bắc: tăng số bụi ~60% để giữ mật độ cỏ như cũ.
+    count: 8300,
     accept: (x, z) => !blocked(x, z, 0.1),
     bounds,
     scale: [0.6, 1.1],
@@ -218,7 +237,7 @@ export function buildGround(ctx: TempleCtx, map: MapDef): void {
       { geometry: FLOWER_STEM, material: stemMat },
       { geometry: FLOWER_HEAD, material: headMat, colors: ['#ffd23f', '#ffffff', '#ff8fb1', '#c39bff', '#ff7a5a', '#8fd3ff'] },
     ],
-    { count: 700, accept: (x, z) => !blocked(x, z, 0.2) && noise(x * 0.15, z * 0.15) > 0.45, bounds, scale: [0.8, 1.3] },
+    { count: 1100, accept: (x, z) => !blocked(x, z, 0.2) && noise(x * 0.15, z * 0.15) > 0.45, bounds, scale: [0.8, 1.3] },
   );
   for (const f of flowers) ctx.dynamics.add(f);
 
@@ -247,7 +266,7 @@ export function buildGround(ctx: TempleCtx, map: MapDef): void {
     const r = 47 + Math.pow(ctx.rng.next(), 0.7) * 95;
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
-    if (Math.abs(x) < 46 && Math.abs(z) < 46) continue;
+    if (Math.abs(x) < 46 && z > -106 && z < 46) continue;
     if (z > 40 && Math.abs(x) < 10) continue;
     const y = terrainHeight(x, z) - 0.2;
     const s = 0.9 + ctx.rng.next() * 0.9;

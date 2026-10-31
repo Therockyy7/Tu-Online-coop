@@ -3,6 +3,10 @@
 File này để **phiên làm việc sau đọc là chạy tiếp được**. Cập nhật mỗi khi xong một bước. Phiên trước từng bị dừng
 giữa chừng vì **chạm giới hạn phiên (session limit)** khi chạy 5 agent song song — vì vậy chạy ít agent một lúc.
 
+> **Trạng thái 2026-10-31 chiều: ĐÃ XONG** 17/17 mục bên dưới (gồm 2 yêu cầu thêm: lạy Phật khi ngồi nghe kinh, bầu
+> trời bớt chói). Đã thử trong game, typecheck sạch, 164 test pass, build OK. Việc còn lại chỉ là tinh chỉnh tuỳ chọn —
+> xem mục "Còn mở / có thể làm tiếp".
+
 ## Yêu cầu gốc của user (nguyên văn)
 
 > trong game Tu online, D:\AI\Tu Online đã chạy đến … phần nhân cấp đồ họa rồi Nâng cấp đồ họa tả thực + tượng Phật,
@@ -15,6 +19,9 @@ giữa chừng vì **chạm giới hạn phiên (session limit)** khi chạy 5 a
 
 > đang chạy đến bước nào và cần chạy gì tiếp thì node vào 1 File md để các phiên xử lý sau có thể thừa kế chạy tiếp.
 > Đồng thời tiếp tục chạy việc đang làm giữa chừng
+
+> (2026-10-31 chiều, kèm ảnh chụp nhìn về phía mặt trời bị trắng xoá) Bầu trời đang bị chói quá, đồng thời tại Đại pháp
+> đường, tôi muốn thêm hành động lày phật khi đang ngồi nghe kinh
 
 Ảnh mẫu tượng Phật: tượng đá xanh xám ngồi thiền trên bệ sen (ảnh pngtree user gửi trong chat — **không** lưu vào dự án
 vì là ảnh có bản quyền; muốn so lại thì xin user gửi lại ảnh).
@@ -31,31 +38,59 @@ vì là ảnh có bản quyền; muốn so lại thì xin user gửi lại ảnh
 | 6 | Nhạc kinh: chép mp3 (57,6 MB, 1 giờ, 128 kbps) vào dự án + danh sách bài | ✅ Xong | `client/src/content/sutra/nhac-phat-tinh-tam.mp3`, `client/src/content/sutra.ts` |
 | 7 | API âm thanh `setRecorded` / `recordedDuration` (khai báo) | ✅ Khai báo xong | `client/src/audio/api.ts` |
 | 8 | Server hoạt động `sutra` (giữ chỗ bồ đoàn, đứng dậy, rời/đổi map trả chỗ, không thưởng) + 11 test | ✅ Xong (agent workflow), 67 test server pass | `server/src/activities/sutra/index.ts`, `server/tests/activities/sutra.test.ts` |
-| 9 | Client hoạt động `sutra` (ngồi, khung hình nhìn tượng, HUD, mức to nhạc theo vị trí, đồng bộ giờ server) | ✅ Đã viết + typecheck sạch; CSS HUD `.sutra-hud`/`.sutra-time` đã thêm (chưa thử trong game) | `client/src/activities/sutra/index.ts`, `client/src/activities/activities.css` |
-| 10 | Cài đặt phát nhạc thu sẵn trong engine âm thanh (HTMLAudioElement → MediaElementSource → kênh nhạc, nhường nhạc nền, chờ mở khóa, tạm dừng khi 0) | 🔄 Workflow đang làm (agent `build:audio`) | `client/src/audio/index.ts` |
-| 11 | Dựng thân Đại Pháp Đường (hiên 10 cột, 3 cửa, tường, trần ô cờ, 4 hàng cột lớn + rồng cuốn, bệ + tượng ~9 m, hào quang, đèn sen, đèn lồng, phướn, vệt nắng, 40 bồ đoàn, mái 3 tầng) | 🔄 Workflow đang làm (agent `build:hall`) | `client/src/art/temple/phapDuong.ts` (đã nối sẵn ở `temple/index.ts`) |
-| 12 | Sân trước điện + 2 nghi môn + mở rộng mặt đất (đồi, cỏ, rừng, lối đi lên) | 🔄 Workflow đang làm (agent `build:yard`) | `client/src/art/temple/phapDuongYard.ts`, `client/src/art/temple/ground.ts` |
-| 13 | Phản biện (review) + sửa lỗi xác nhận | ⏳ Workflow chạy sau khi build xong (2 agent: `review:sutra-audio`, `review:art`) | — |
-| 14 | Kiểm hình ảnh trong game + tinh chỉnh; tả thực thêm | ⏳ Chưa làm | — |
-| 15 | Typecheck + test + build cuối | ⏳ Chưa làm | — |
+| 9 | Client hoạt động `sutra` (ngồi, khung hình nhìn tượng, HUD, mức to nhạc theo vị trí, đồng bộ giờ server) | ✅ Xong, **đã thử trong game**: đi bộ tới bồ đoàn → E ngồi (khóa di chuyển, anim `sit`, khung hình nhìn tượng) → HUD "Đang nghe … 35:39 / 60:02" → E đứng dậy. HUD nâng lên `bottom: calc(9vh + 14px)` (ngang HUD phòng tranh) vì trước đó đè thanh biểu cảm | `client/src/activities/sutra/index.ts`, `client/src/activities/activities.css` |
+| 10 | Cài đặt phát nhạc thu sẵn trong engine âm thanh (HTMLAudioElement → MediaElementSource → kênh nhạc, nhường nhạc nền, chờ mở khóa, tạm dừng khi 0) | ✅ Xong + review + **thử thật**: stream 206 Partial Content; ra sân → tắt dần, tạm dừng, `preload='none'`; quay vào → `play()` lại và tua tới vị trí giờ server; ngồi lại: HUD 37:10 vs `currentTime` 2230,5 s (lệch 0,5 s do HUD làm tròn) | `client/src/audio/index.ts` |
+| 11 | Dựng thân Đại Pháp Đường (hiên 10 cột, 3 cửa, tường, trần ô cờ, 4 hàng cột lớn + rồng cuốn, bệ + tượng ~9 m, hào quang, đèn sen, đèn lồng, phướn, vệt nắng, 40 bồ đoàn, mái 3 tầng) | ✅ Xong: nền đá (đỉnh 0,064) + sàn đá mài (0,08), hiên 10 cột + trần ô cờ, 3 cửa mở (~300 đinh vàng gộp 1 mesh), 26 cửa sổ chấn song, 9 vệt nắng, 20 cột + 4 rồng cuốn, trần 30 tấm ô cờ, thảm đỏ, 40 bồ đoàn trên chiếu, 3 đèn chùm sen, 12 đèn lồng, 8 phướn; mái 3 tầng nóc 24 m (`phapDuongRoof.ts`). ≈188k tam giác chưa kể tượng (~410k), đúng 3 PointLight. Sprite quầng sáng → `glowCard` (mesh quay theo camera) vì GTAO vẽ Sprite thành ô tối | `phapDuong.ts`, `phapDuongRoof.ts` (mới), `phapDuongDecor.ts`, `phapDuongAltar.ts` |
+| 12 | Sân trước điện + 2 nghi môn + mở rộng mặt đất (đồi, cỏ, rừng, lối đi lên) | ✅ Xong + review: kiểm bằng số địa hình = 0 tuyệt đối trên toàn vùng đi lại, lối Đông/Tây không cắt collider, đồ trang trí đúng tâm collider, biển nghi môn đọc đúng chiều cả hai mặt | `phapDuongYard.ts`, `ground.ts` |
+| 13 | Phản biện (review) + sửa lỗi xác nhận | ✅ 3 agent phản biện, sửa 6 lỗi: âm thanh mất đồng bộ nếu bước ra trước khi metadata về (`loadedmetadata` giờ tua khi còn đang phát); viền vàng bệ dưới phủ kín mặt bệ; nền đá dưới điện sát sàn 4 mm (z-fighting xa) → hạ còn 0,064; 2 chỗ cấp phát mỗi khung (phướn trong điện, pháp tuyến phướn ngoài sân); cỏ mọc xuyên hàng cây cảnh x ±31 | — |
+| 14 | Kiểm hình ảnh trong game + tinh chỉnh | ✅ Đã chụp: từ sân chính (mái 3 tầng nhô sau Chánh Điện), mặt tiền từ sân, trong điện, 2 góc sau, góc Tây ngoài điện, nghi môn Đông, từ trên cao. Sửa thêm: **núi xa mọc xuyên vào khu Bắc** (160 đỉnh lưới nhô lên trong tường, cao tới 8,8 m, thấy cả đồi xanh sau bệ thờ) → `createMountains` có tham số `clear`, ngọn nào lấn khuôn viên (+8 m) thì lùi ra theo hướng của nó (9/66 ngọn dời, còn 0); GTAO bỏ qua `Sprite` (`Renderer.ts`, chữa luôn quầng tối của sprite ở pha chế) | `client/src/art/common/sky.ts`, `temple/index.ts`, `client/src/engine/Renderer.ts` |
+| 15 | Typecheck + test + build cuối | ✅ `npm run typecheck` sạch; `npm test` 15 file / **164 test pass**; `npm run build` OK (mp3 ra `dist/client/assets/nhac-phat-tinh-tam-*.mp3`); server production thử ở cổng 3999 trả mp3 `206 Partial Content` + `Accept-Ranges: bytes` + `audio/mpeg` | — |
+| 16 | **Lạy Phật khi đang ngồi nghe kinh** (yêu cầu thêm chiều 31/10) | ✅ Đang ngồi bồ đoàn: **Space = lạy** — hoạt ảnh `prostrate` sẵn có của Điện Tăng Đoàn (quỳ lên, chắp tay cúi rạp về phía tượng, `PORTRAIT_BOW.bowMs` = 1,8 s) rồi tự về `sit`; camera góc thứ nhất cúi theo (mắt 0,85 → 0,45 m, nhìn từ mặt tượng xuống sàn rồi ngẩng lại); chuông gia trì khẽ mỗi lạy; bấm Space lúc đang lạy bị bỏ qua; E giữa lúc lạy vẫn đứng dậy bình thường. Hoạt ảnh đi theo tư thế đồng bộ qua mạng (server nhận mọi `AnimId`) nên cả phòng thấy — **chỉ sửa client, không thưởng** (giữ hợp đồng "chỉ ngồi nghe"). HUD: "Space: lạy Phật · E / Esc: đứng dậy". Đã thử trong game | `client/src/activities/sutra/index.ts` |
+| 17 | **Bầu trời bớt chói** | ✅ Nguyên nhân (đo trong game): nhìn về phía mặt trời, cả vùng trời rộng quanh mặt trời (quầng Mie + mây sáng, không chỉ đĩa) vượt ngưỡng bloom 1,6 của Chùa → bloom tràn thành màn trắng phủ kín hình. Sửa trong `tuneSky`: nén mềm chỗ sáng của bầu trời **thấy được** (`SKY_LIMIT`: từ 0,9 nén về trần 1,35 < ngưỡng bloom; riêng đĩa mặt trời trần 6 để còn quầng nhỏ). Bản chụp IBL không nén (ánh sáng cảnh giữ nguyên); thông số khí quyển giữ nguyên. Đã so: quay lưng mặt trời thì trời y hệt trước; nhìn mặt trời thì trời xanh + đĩa trắng có quầng mềm | `client/src/art/temple/index.ts` |
+
+**Phiên 2026-10-31 chiều** (session `d8f7f5e5`): lần chạy tiếp lúc trưa lại bị ngắt vì **giới hạn tuần** ("weekly limit ·
+resets 6pm") lúc 12:08 — journal cho thấy `build:audio` xong, `build:yard` hỏng sau khi ghi file, `build:hall` dừng giữa
+chừng. Phiên chiều chạy workflow `wf_fd274eee-224` (4 agent, tối đa 3 cùng lúc, ~44 phút): `build:hall` →
+`review:hall`, song song `review:sutra-audio` + `review:yard` — cả 4 xong, không agent nào lỗi. Sau đó orchestrator tự
+kiểm trong game, sửa núi xuyên khuôn viên + GTAO/Sprite + vị trí HUD, chạy typecheck/test/build (xem bảng).
 
 Đã kiểm lúc viết file: typecheck 3 project sạch, **164 test pass** (gồm 11 test sutra mới). Phiên 2026-10-31 sáng: đã
 chạy tiếp workflow từ chỗ dừng (task `w6so2e46u`, run `wf_c425360c-c01`) với script đã sửa — bỏ agent client (đã xong),
 còn 3 agent build (audio, hall, yard) + 2 agent review. Dev server được bật lại bằng Bash nền (`npm run dev` trong
 `D:\AI\Tu Online`) vì `preview_start` chỉ đọc `.claude/launch.json` của thư mục phiên (fastdo-server).
 
-## Chạy tiếp như thế nào
+## Còn mở / có thể làm tiếp (không chặn — tuỳ user)
 
-1. **Bật dev server** (nếu chưa chạy — kiểm `netstat -ano | grep -E ":(5173|3000) "`): dùng preview_start cấu hình `game`
-   trong `.claude/launch.json` (= `npm run dev`: Vite :5173 + game server :3000). Đừng kill process lạ.
-2. **Workflow** (đã sửa để chỉ chạy phần còn lại, ít agent hơn): script
-   `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\ad41d191-4300-4eaf-90f4-1021c0958be6\workflows\scripts\phap-duong-build-wf_c425360c-c01.js`,
-   run id `wf_c425360c-c01` → `Workflow({ scriptPath, resumeFromRunId: 'wf_c425360c-c01' })`. Agent `build:server` đã xong
-   nên trả kết quả cache. Nếu phiên mới không có script/journal này (khác session) thì chạy lại các mục 10–13 bằng tay
-   theo mô tả trong bảng + mục "Hợp đồng" bên dưới.
-3. **Client sutra** (mục 9): `npx tsc -p client`, đọc lại file, thêm khối CSS HUD (`.sutra-hud`…) vào `activities.css`.
-4. Sau khi các phần xong: kiểm trong game (mục 14), rồi `npm run typecheck`, `npm test`, `npm run build` (mục 15).
-5. Cập nhật lại bảng trạng thái ở trên.
+- **Giữ chỗ "ma" khi đổi tab/thiết bị** (cả engine, không riêng sutra): `RoomManager.ts` gắn lại socket mà không gọi
+  `leaveAll` → server vẫn giữ bồ đoàn, client mới không biết đang ngồi. Tự hết khi người chơi đi khỏi (tick 1 s trả chỗ).
+  Cách sửa gợi ý: trong `onInteract`, nếu đã ngồi đúng bồ đoàn đó thì gửi lại `ctx.open` (nhưng test hiện tại khẳng định
+  hành vi "bỏ qua" → phải sửa cả test). Tải lại trang bình thường không bị (disconnect → leaveAll).
+- Trình duyệt chặn tự phát → phần tử `<audio>` vẫn `preload='auto'`, có thể tải tiếp file 57 MB khi đã đi xa (nhỏ).
+- Nhạc nền synth nhỏ đi một nhịp trước khi nhạc kinh kịp phát (lúc chờ metadata) (nhỏ).
+- Mỹ thuật nhỏ: đế cột/tháp đèn sen rộng hơn collider chút; chuông + mõ trước bệ không có collider; 2 vệt nắng cửa Đông
+  rơi trúng hàng cột x = 16; bó vỉa Nam của sân (cao 0,14) cắt ngang trục giữa sau Chánh Điện không có collider.
+- Đèn trong điện mạnh hơn hẳn Tăng Đoàn (55/40/45 cd so với 6/4,5) — ảnh chụp chưa cháy sáng, nên xem lại khi chơi thật.
+- Chưa thử: Safari (chính sách tự phát), nhiều người cùng nghe một lúc (vị trí đều tính từ giờ server nên về lý thuyết khớp).
+- Tượng Phật còn chỉnh được tai, mắt, cánh mũi, chuyển tiếp cổ–ngực (xem "Ghi chú").
+
+## Chạy dự án / kiểm lại
+
+1. **Dev server** (kiểm `netstat -ano | grep -E ":(5173|3000) "`): `npm run dev` trong `D:\AI\Tu Online` (Vite :5173 +
+   game server :3000). `preview_start` chỉ đọc `.claude/launch.json` của thư mục phiên, nên nếu phiên mở ở fastdo-server
+   thì bật bằng Bash nền. Đừng kill process lạ.
+2. Vào game: `http://localhost:5173/?auto&r=PHONG&name=Ten&slot=N` — **mã phòng đúng 4 ký tự** trong
+   `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (vd `QATS`); mã sai (vd `QAMAIN`, `HALLR`) bị bỏ qua và vào phòng mặc định — tức
+   phòng `CHUA` user đang chơi (user từng thấy "Host đã rời chùa" vì vậy). Khung trình duyệt của app bị ẩn thì game
+   đứng (trình duyệt dừng vòng vẽ) → hiện lại bằng `mcp__ccd_view__show_pane` pane `preview`. DEV có
+   `window.__tu.cam(x, y, z, yaw, pitch)` /
+   `__tu.free()`. Đi bộ bằng `__tu.game.controller.glideTo(x, z)` (có va chạm; `teleport` bị server kéo về). Bồ đoàn chỉ
+   nhận E khi đứng trong bán kính 0,8 m quanh tâm và nhìn về phía Bắc; `__tu.game.interaction.press()` = bấm E.
+   Camera đặt ở z −36 là nằm sát tường sau Chánh Điện (thấy "dải nâu" ở đáy hình — không phải lỗi); xem điện từ sân
+   thì dùng z ≈ −42,5.
+3. Kiểm cuối: `npm run typecheck`, `npm test`, `npm run build`.
+4. Workflow đã chạy (tham khảo prompt nếu cần làm lại phần nào): phiên chiều
+   `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\d8f7f5e5-4d03-417a-8712-fc9f0e1a8680\workflows\scripts\phap-duong-finish-wf_fd274eee-224.js`;
+   phiên sáng `...\ad41d191-4300-4eaf-90f4-1021c0958be6\workflows\scripts\phap-duong-build-wf_c425360c-c01.js`.
 
 ## Hợp đồng đã chốt (đừng đổi khi chạy tiếp)
 
@@ -77,4 +112,6 @@ còn 3 agent build (audio, hall, yard) + 2 agent review. Dev server được b�
 - Chân dung ở Điện Tăng Đoàn là bạn bè còn sống → không đặt đồ thờ cúng kiểu người mất (bát hương, nhang).
 - Tượng Phật: tỉ lệ đo từ ảnh mẫu (tổng cao 3,62 đơn vị; nhục kế 3,38→3,62; chân tóc 3,2; mắt 2,99; cằm 2,66; vai 2,23–2,36;
   gối ±1,28; bệ 0→0,70). Còn có thể chỉnh: tai, mắt, cánh mũi, chuyển tiếp cổ–ngực.
-- Không có git (thư mục chưa git init) — không commit. Dự án được tự chạy npm install/test/build.
+- Dự án **đã có git** (commit gốc `bfa8506 Feat: Base game`, remote `origin` = GitHub `Therockyy7/Tu-Online-coop`) —
+  AI không tự commit/push; thay đổi của phiên 2026-10-31 chiều đang nằm ở working tree (chưa commit). Dự án được tự
+  chạy npm install/test/build.

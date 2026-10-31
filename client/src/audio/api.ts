@@ -14,8 +14,9 @@ export interface PlayOptions {
 
 export interface RecordedOptions {
   /**
-   * Giây bắt đầu mỗi lần phát hoặc nối lại sau khi tạm dừng, tính theo thời lượng bài (giây) — để canh theo giờ server
-   * (cả phòng nghe cùng một đoạn). Không có = phát từ đầu.
+   * Giây bắt đầu mỗi lần phát hoặc nối lại sau khi tạm dừng, tính theo thời lượng bài (giây; Infinity nếu luồng không
+   * báo độ dài) — để canh theo giờ server (cả phòng nghe cùng một đoạn). Kết quả được kẹp trong [0, thời lượng).
+   * Không có = không tua: lần đầu phát từ đầu, nối lại thì phát tiếp chỗ đã dừng.
    */
   startAt?: (duration: number) => number;
   /** Lặp lại bài khi hết (mặc định true). */
@@ -48,12 +49,16 @@ export interface AudioApi {
 
   /**
    * Nhạc thu sẵn phát trực tuyến qua kênh nhạc (file dài — nhạc kinh ở Đại Pháp Đường). `level` 0..1 = mức to mong
-   * muốn (đổi êm vài trăm ms); 0 = nhỏ dần rồi tạm dừng (thôi tải). Nhạc nền tổng hợp nhỏ dần theo `level` để nhường
-   * chỗ. Gọi lại với cùng `url` chỉ đổi mức to; `url` khác = chuyển bài; null = tắt. Gọi trước khi mở khóa âm thanh
-   * thì được nhớ lại và áp dụng khi mở khóa.
+   * muốn (đổi êm ~0,5 giây); 0 = nhỏ dần rồi tạm dừng (thôi tải), lên lại thì tua theo `startAt` rồi phát tiếp. Nhạc
+   * tổng hợp (cả nhạc nền lẫn bài có nhịp) nhỏ dần theo `level` để nhường chỗ. Gọi lại với cùng `url` chỉ đổi mức to
+   * (và cập nhật tùy chọn); `url` khác = chuyển bài; null = tắt. Gọi trước khi mở khóa âm thanh thì được nhớ lại và
+   * áp dụng khi mở khóa; trình duyệt chặn phát (autoplay) thì thử lại ở lần unlock() sau.
    */
   setRecorded(url: string | null, level: number, opts?: RecordedOptions): void;
-  /** Thời lượng (giây) của một file nhạc thu sẵn — chỉ tải phần đầu file (metadata). */
+  /**
+   * Thời lượng (giây) của một file nhạc thu sẵn — chỉ tải phần đầu file (metadata). Không bao giờ reject: lỗi hoặc quá
+   * lâu (~15 giây) → 0, và kết quả hỏng không được nhớ để lần gọi sau hỏi lại.
+   */
   recordedDuration(url: string): Promise<number>;
 
   setVolume(channel: AudioChannel, value: number): void;

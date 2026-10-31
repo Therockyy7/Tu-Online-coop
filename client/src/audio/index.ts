@@ -1,7 +1,8 @@
 // Bộ máy âm thanh Web Audio: kênh tổng/nhạc/hiệu ứng, vang phòng, lập lịch nhạc theo bước (bài có nhịp canh
-// đúng giờ server để cả phòng nghe cùng phách), hiệu ứng âm thanh tổng hợp. Chỉ bật sau cú bấm đầu tiên.
+// đúng giờ server để cả phòng nghe cùng phách), hiệu ứng âm thanh tổng hợp, nhạc thu sẵn phát trực tuyến (nhạc kinh
+// ở Đại Pháp Đường — nhạc tổng hợp nhỏ lại nhường chỗ). Chỉ bật sau cú bấm đầu tiên.
 import type { SfxId, TrackId } from '@shared/index';
-import type { AudioApi, AudioChannel, PlayOptions } from './api';
+import type { AudioApi, AudioChannel, PlayOptions, RecordedOptions } from './api';
 import { TRACKS, type MusicTrack } from './music';
 import { SFX, bigBell } from './sfx';
 import { impulseResponse, type Voice } from './synth';
@@ -19,9 +20,91 @@ interface Playing {
   fadingUntil: number | null;
 }
 
+/** Một bài thu sẵn đang mở: thẻ audio (không gắn vào trang) → MediaElementSource → âm lượng riêng → kênh nhạc. */
+interface Recorded {
+  url: string;
+  el: HTMLAudioElement;
+  source: MediaElementAudioSourceNode;
+  gain: GainNode;
+  opts: RecordedOptions;
+  /** Mức to mong muốn 0..1 (0 = nhỏ dần rồi tạm dừng). */
+  level: number;
+  /** Đã play() khi chưa có metadata: giữ im, chờ 'loadedmetadata' tua đúng giây rồi mới to lên. */
+  needSeek: boolean;
+  /** play() bị từ chối (chính sách autoplay): thử lại ở lần unlock() sau — trong cú bấm/phím của người dùng. */
+  blocked: boolean;
+  /** Thẻ audio báo lỗi (mất mạng, file hỏng). */
+  failed: boolean;
+  /** Số lần đã dựng lại thẻ vì lỗi liên tiếp. */
+  tries: number;
+  /** Đã tháo (đổi bài / tắt): sự kiện đến muộn bỏ qua. */
+  dead: boolean;
+  pauseTimer: ReturnType<typeof setTimeout> | null;
+  retryTimer: ReturnType<typeof setTimeout> | null;
+}
+
 const LOOKAHEAD = 0.14;
 const FADE = 1.3;
 const REVERB_HEAVY = new Set<SfxId>(['bell_big', 'bell_small', 'gong', 'mo_lead', 'mo', 'bong', 'chant_hum', 'rankup']);
+/** Hằng thời gian (giây) khi nhạc thu sẵn đổi mức to, và khi nhạc tổng hợp nhỏ lại / to lên nhường chỗ. */
+const REC_TC = 0.5;
+/** Nhỏ dần về 0 xong (≈ 5 hằng thời gian) mới tạm dừng / dọn thẻ audio. */
+const REC_FADE_MS = 2500;
+/** Nhạc thu sẵn ở mức 1 thì nhạc tổng hợp còn 15%. */
+const REC_DUCK = 0.85;
+/** Không tua sát cuối bài (tua tới đúng thời lượng = hết bài ngay). */
+const REC_TAIL = 0.1;
+/** Thẻ audio lỗi khi đang nghe: dựng thẻ mới sau ngần này, tối đa REC_RETRIES lần liên tiếp. */
+const REC_RETRY_MS = 8000;
+const REC_RETRIES = 3;
+/** Hỏi thời lượng quá lâu thì thôi (trả 0). */
+const PROBE_TIMEOUT_MS = 15_000;
+
+/**
+ * Thời lượng (giây) một file nhạc: thẻ audio tạm chỉ tải metadata, xong thì bỏ nguồn (hủy tải). Luồng chưa biết độ dài
+ * (Infinity / NaN) thì chờ 'durationchange'. Lỗi hoặc quá PROBE_TIMEOUT_MS → 0; không bao giờ reject.
+ */
+function probeDuration(url: string): Promise<number> {
+  return new Promise<number>((resolve) => {
+    let el: HTMLAudioElement | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    function done(d: number): void {
+      const e = el;
+      el = null;
+      if (timer) clearTimeout(timer);
+      if (e) {
+        e.removeEventListener('loadedmetadata', check);
+        e.removeEventListener('durationchange', check);
+        e.removeEventListener('error', fail);
+        try {
+          e.removeAttribute('src');
+          e.load();
+        } catch {
+          // bỏ qua
+        }
+      }
+      resolve(d);
+    }
+    function check(): void {
+      const d = el ? el.duration : NaN;
+      if (Number.isFinite(d) && d > 0) done(d);
+    }
+    function fail(): void {
+      done(0);
+    }
+    try {
+      el = new Audio();
+      el.preload = 'metadata';
+      el.addEventListener('loadedmetadata', check);
+      el.addEventListener('durationchange', check);
+      el.addEventListener('error', fail);
+      timer = setTimeout(fail, PROBE_TIMEOUT_MS);
+      el.src = url;
+    } catch {
+      fail();
+    }
+  });
+}
 
 export function createAudio(): AudioApi {
   let ctx: AudioContext | null = null;
@@ -29,12 +112,23 @@ export function createAudio(): AudioApi {
   let musicBus!: GainNode;
   let sfxBus!: GainNode;
   let reverbIn!: GainNode;
+  /** Tầng chung của nhạc tổng hợp: phần khô (→ kênh nhạc) và phần gửi vang — nhỏ lại nhường chỗ cho nhạc thu sẵn. */
+  let synthBus!: GainNode;
+  let synthVerb!: GainNode;
   const volumes: Record<AudioChannel, number> = { master: 0.8, music: 0.6, sfx: 0.9 };
   let clock = () => Date.now();
   let bg: TrackId | null = null;
   let beat: { track: TrackId; start: number; bpm: number } | null = null;
   const playing: Playing[] = [];
   let timer: ReturnType<typeof setInterval> | null = null;
+  /** Yêu cầu nhạc thu sẵn gần nhất — nhớ cả khi chưa mở khóa âm thanh. */
+  let wanted: { url: string; level: number; opts: RecordedOptions } | null = null;
+  /** Bài thu sẵn đang mở (đúng `wanted.url`); bài cũ đã tháo thì tự nhỏ dần rồi dọn. */
+  let rec: Recorded | null = null;
+  /** Mức nhạc tổng hợp đang nhắm tới (1 = không nhường). */
+  let duck = 1;
+  /** Thời lượng theo url: đang hỏi hoặc đã biết (hỏi hỏng thì xóa để lần sau hỏi lại). */
+  const durations = new Map<string, Promise<number>>();
 
   const applyVolumes = () => {
     if (!ctx) return;
@@ -66,6 +160,13 @@ export function createAudio(): AudioApi {
     wet.connect(master);
     reverbIn = c.createGain();
     reverbIn.connect(convolver);
+    // Mọi nhạc tổng hợp — nhạc nền lẫn bài có nhịp (tụng kinh lofi, DJ) — cùng nhường chỗ cho nhạc thu sẵn: nhạc thu
+    // sẵn chỉ vang quanh Đại Pháp Đường, xa chỗ các trò cần nghe phách. Nhạc thu sẵn đi thẳng vào kênh nhạc, không qua
+    // vang (bản thu đã có tiếng vang của nó).
+    synthBus = c.createGain();
+    synthBus.connect(musicBus);
+    synthVerb = c.createGain();
+    synthVerb.connect(reverbIn);
     applyVolumes();
   }
 
@@ -119,11 +220,11 @@ export function createAudio(): AudioApi {
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.linearRampToValueAtTime(1, now + FADE);
-    gain.connect(musicBus);
+    gain.connect(synthBus);
     const send = ctx.createGain();
     send.gain.value = id === 'temple_ambience' || id === 'chant_lofi' ? 0.35 : 0.08;
     gain.connect(send);
-    send.connect(reverbIn);
+    send.connect(synthVerb);
     let nextStep = 0;
     if (startServer !== null) {
       const stepMs = 60_000 / bpm / 4;
@@ -180,6 +281,238 @@ export function createAudio(): AudioApi {
     }
   }
 
+  // ──────────── Nhạc thu sẵn: thẻ audio phát trực tuyến → Web Audio (qua kênh nhạc, theo thanh âm lượng) ────────────
+
+  /** Nhạc tổng hợp nhỏ lại theo mức nhạc thu sẵn; bài lỗi hoặc bị chặn không tính (đừng để cả điện im lặng). */
+  function updateDuck(): void {
+    if (!ctx) return;
+    const r = rec;
+    const g = 1 - REC_DUCK * (r && !r.failed && !r.blocked ? r.level : 0);
+    if (g === duck) return;
+    duck = g;
+    synthBus.gain.setTargetAtTime(g, ctx.currentTime, REC_TC);
+    synthVerb.gain.setTargetAtTime(g, ctx.currentTime, REC_TC);
+  }
+
+  /** Âm lượng riêng của bài về mức mong muốn (êm); còn chờ tua đúng giây thì giữ im. */
+  function rampRec(r: Recorded): void {
+    if (!ctx) return;
+    r.gain.gain.setTargetAtTime(r.needSeek ? 0 : r.level, ctx.currentTime, REC_TC);
+  }
+
+  /** Tua tới giây opts.startAt(thời lượng) (canh giờ server), kẹp trong [0, thời lượng). Thiếu startAt: không tua. */
+  function seekToStart(r: Recorded): void {
+    const startAt = r.opts.startAt;
+    if (!startAt) return;
+    const d = r.el.duration;
+    let t: number;
+    try {
+      t = startAt(d);
+    } catch (err) {
+      console.warn('[audio] lỗi startAt', err);
+      return;
+    }
+    if (!Number.isFinite(t)) return;
+    t = Math.max(0, t);
+    if (Number.isFinite(d) && d > 0) t = Math.min(t, Math.max(0, d - REC_TAIL));
+    if (Math.abs(r.el.currentTime - t) < 0.05) return;
+    try {
+      r.el.currentTime = t;
+    } catch {
+      // Luồng không cho tua: phát tiếp chỗ cũ.
+    }
+  }
+
+  /**
+   * Phát (lại) bài từ im lặng: tua tới giây canh giờ server, play() rồi to dần. Chưa có metadata thì vẫn play() ngay —
+   * để trình duyệt tải, và còn nằm trong cú bấm nếu gọi từ unlock() — nhưng giữ im tới 'loadedmetadata' mới tua.
+   */
+  function startRecorded(r: Recorded): void {
+    if (!ctx || r.dead || r.failed) return;
+    const el = r.el;
+    const now = ctx.currentTime;
+    r.blocked = false;
+    r.gain.gain.cancelScheduledValues(now);
+    r.gain.gain.setValueAtTime(0, now);
+    try {
+      el.preload = 'auto';
+      r.needSeek = el.readyState < HTMLMediaElement.HAVE_METADATA;
+      if (!r.needSeek) seekToStart(r);
+      void el.play().catch(() => {
+        // Bị chặn (autoplay) — hoặc bị ngắt vì vừa tạm dừng / tháo bài trước khi kịp phát thì thôi.
+        if (r.dead || r.failed || r.level <= 0 || !el.paused) return;
+        r.blocked = true;
+        r.needSeek = false;
+        updateDuck();
+      });
+    } catch {
+      r.blocked = true;
+    }
+    rampRec(r);
+    updateDuck();
+  }
+
+  /** Nhỏ dần xong mà vẫn ở mức 0 thì tạm dừng và hạ preload — trình duyệt thôi tải tiếp. */
+  function schedulePause(r: Recorded): void {
+    if (r.pauseTimer) clearTimeout(r.pauseTimer);
+    r.pauseTimer = setTimeout(() => {
+      r.pauseTimer = null;
+      if (r.dead || r.level > 0) return;
+      try {
+        r.el.pause();
+        r.el.preload = 'none';
+      } catch {
+        // bỏ qua
+      }
+    }, REC_FADE_MS);
+  }
+
+  /** Đổi mức to: từ 0 lên (kể cả lần đầu) = tua theo giờ server rồi phát; về 0 = nhỏ dần rồi tạm dừng. */
+  function setRecLevel(r: Recorded, level: number): void {
+    const prev = r.level;
+    if (level === prev) return;
+    r.level = level;
+    if (level > 0) {
+      if (r.pauseTimer) {
+        clearTimeout(r.pauseTimer);
+        r.pauseTimer = null;
+      }
+      // Chưa kịp tạm dừng thì vẫn đúng giờ: chỉ đổi mức to. Bài đã hết (loop = false) chỉ phát lại khi lên từ 0.
+      if (!r.el.paused) rampRec(r);
+      else if (prev === 0 || r.blocked) startRecorded(r);
+    } else {
+      rampRec(r);
+      if (!r.el.paused) schedulePause(r);
+    }
+  }
+
+  /** Dọn hẳn một bài: dừng, bỏ nguồn (hủy tải), tháo khỏi đồ thị âm thanh. */
+  function destroyRecorded(r: Recorded): void {
+    try {
+      r.el.pause();
+      r.el.removeAttribute('src');
+      r.el.load();
+    } catch {
+      // bỏ qua
+    }
+    try {
+      r.source.disconnect();
+      r.gain.disconnect();
+    } catch {
+      // bỏ qua
+    }
+  }
+
+  /** Tháo bài (đổi bài / tắt): đang vang thì nhỏ dần rồi mới dọn, không thì dọn ngay. */
+  function retire(r: Recorded): void {
+    r.dead = true;
+    if (r.pauseTimer) clearTimeout(r.pauseTimer);
+    if (r.retryTimer) clearTimeout(r.retryTimer);
+    r.pauseTimer = null;
+    r.retryTimer = null;
+    if (ctx && ctx.state === 'running' && !r.el.paused && !r.needSeek && !r.failed) {
+      r.gain.gain.setTargetAtTime(0, ctx.currentTime, REC_TC);
+      setTimeout(() => destroyRecorded(r), REC_FADE_MS);
+    } else {
+      destroyRecorded(r);
+    }
+  }
+
+  /** Thẻ audio lỗi (mất mạng, file hỏng): nhạc tổng hợp trở lại; vẫn đang nghe thì hẹn dựng thẻ mới (có giới hạn). */
+  function onRecordedError(r: Recorded): void {
+    if (r.dead || r.failed) return;
+    r.failed = true;
+    r.needSeek = false;
+    updateDuck();
+    if (r.tries >= REC_RETRIES) return;
+    r.retryTimer = setTimeout(() => {
+      r.retryTimer = null;
+      if (r.dead || r !== rec || r.level <= 0) return;
+      retire(r);
+      rec = null;
+      syncRecorded(r.tries + 1);
+    }, REC_RETRY_MS);
+  }
+
+  /** Mở bài: mỗi lần một thẻ audio mới (MediaElementSource chỉ tạo được 1 lần cho mỗi thẻ); gắn nguồn sau cùng. */
+  function openRecorded(c: AudioContext, url: string, opts: RecordedOptions, tries: number): Recorded | null {
+    try {
+      const el = new Audio();
+      el.preload = 'auto';
+      el.loop = opts.loop !== false;
+      const source = c.createMediaElementSource(el);
+      const gain = c.createGain();
+      gain.gain.value = 0;
+      source.connect(gain);
+      gain.connect(musicBus);
+      const r: Recorded = {
+        url,
+        el,
+        source,
+        gain,
+        opts,
+        level: 0,
+        needSeek: false,
+        blocked: false,
+        failed: false,
+        tries,
+        dead: false,
+        pauseTimer: null,
+        retryTimer: null,
+      };
+      el.addEventListener('loadedmetadata', () => {
+        if (r.dead || !r.needSeek) return;
+        r.needSeek = false;
+        // Tua cả khi mức to vừa về 0: lên lại trước lúc tạm dừng thì chỉ to lên, không tua nữa — phải đúng giây sẵn.
+        if (!el.paused) seekToStart(r);
+        rampRec(r);
+      });
+      el.addEventListener('ended', () => {
+        if (r.dead || el.loop) return;
+        try {
+          r.opts.onEnded?.();
+        } catch (err) {
+          console.warn('[audio] lỗi onEnded', err);
+        }
+      });
+      el.addEventListener('error', () => onRecordedError(r));
+      el.src = url;
+      return r;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Đưa nhạc thu sẵn về đúng yêu cầu gần nhất. Tháo bài cũ (đổi bài / tắt) làm ngay cả khi chưa mở khóa; mở bài mới,
+   * phát và đổi mức to thì chờ AudioContext chạy — unlock() gọi lại hàm này. `tries` = số lần dựng lại vì lỗi.
+   */
+  function syncRecorded(tries = 0): void {
+    const w = wanted;
+    // Đổi bài / tắt; hoặc bài từng lỗi được nghe lại từ mức 0 → dựng thẻ mới.
+    if (rec && (!w || w.url !== rec.url || (rec.failed && rec.level === 0 && w.level > 0))) {
+      retire(rec);
+      rec = null;
+    }
+    const c = ctx;
+    if (w && c && c.state === 'running') {
+      if (!rec && w.level > 0) rec = openRecorded(c, w.url, w.opts, tries);
+      if (rec) {
+        rec.opts = w.opts;
+        const loop = w.opts.loop !== false;
+        if (rec.el.loop !== loop) rec.el.loop = loop;
+        setRecLevel(rec, w.level);
+      }
+    }
+    updateDuck();
+  }
+
+  /** AudioContext đang chạy (unlock): áp yêu cầu gần nhất; play() từng bị chặn thì thử lại ngay trong cú bấm/phím. */
+  function resumeRecorded(): void {
+    syncRecorded();
+    if (rec && rec.blocked && rec.level > 0) startRecorded(rec);
+  }
+
   return {
     unlock() {
       try {
@@ -187,8 +520,18 @@ export function createAudio(): AudioApi {
           ctx = new AudioContext({ latencyHint: 'interactive' });
           build(ctx);
         }
-        if (ctx.state === 'suspended') void ctx.resume().then(refreshMusic);
-        else if (!playing.some((p) => p.fadingUntil === null)) refreshMusic();
+        if (ctx.state === 'suspended') {
+          void ctx.resume().then(
+            () => {
+              refreshMusic();
+              resumeRecorded();
+            },
+            () => {}, // context đã đóng — bỏ qua
+          );
+        } else {
+          if (!playing.some((p) => p.fadingUntil === null)) refreshMusic();
+          resumeRecorded();
+        }
       } catch (err) {
         console.warn('[audio] không mở được âm thanh', err);
       }
@@ -231,9 +574,22 @@ export function createAudio(): AudioApi {
       playAtAudio('drop', ctx.currentTime + 0.01, { volume: 1 });
       playAtAudio('airhorn', ctx.currentTime + 0.05, { volume: 0.5 });
     },
-    // KHUNG — sẽ được cài đặt (HTMLAudioElement → MediaElementSource → kênh nhạc, nhường nhạc nền).
-    setRecorded() {},
-    recordedDuration: () => Promise.resolve(0),
+    setRecorded(url, level, opts = {}) {
+      const lv = Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0;
+      wanted = url ? { url, level: lv, opts } : null;
+      syncRecorded();
+    },
+    recordedDuration(url) {
+      let p = durations.get(url);
+      if (!p) {
+        p = probeDuration(url).then((d) => {
+          if (!(d > 0)) durations.delete(url); // hỏi hỏng: lần sau hỏi lại
+          return d;
+        });
+        durations.set(url, p);
+      }
+      return p;
+    },
     setVolume(channel, value) {
       volumes[channel] = Math.max(0, Math.min(1, value));
       applyVolumes();

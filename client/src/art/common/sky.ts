@@ -93,8 +93,15 @@ export function createSky(o: SkyOptions): SkyHandle {
   };
 }
 
-/** Vòng núi bao quanh (nhiều lớp xa dần), dựng bằng chóp đa diện rồi gộp lại cho nhẹ. */
-export function createMountains(seed: number, layers: { dist: [number, number]; height: [number, number]; colors: string[]; count: number }[]): THREE.Group {
+/**
+ * Vòng núi bao quanh (nhiều lớp xa dần), dựng bằng chóp đa diện rồi gộp lại cho nhẹ. `clear` = khung mặt đất của map
+ * (toạ độ thế giới) không được có sườn núi nhô lên — ngọn nào lấn vào thì lùi ra xa theo hướng của nó.
+ */
+export function createMountains(
+  seed: number,
+  layers: { dist: [number, number]; height: [number, number]; colors: string[]; count: number }[],
+  clear?: { minX: number; maxX: number; minZ: number; maxZ: number },
+): THREE.Group {
   const root = new THREE.Group();
   let s = seed;
   const rnd = () => {
@@ -150,11 +157,28 @@ export function createMountains(seed: number, layers: { dist: [number, number]; 
       }
       g.setAttribute('color', new THREE.BufferAttribute(col, 3));
       g.computeVertexNormals();
+      // Sườn nhô lên khỏi mặt đất (y > 0) bên trong `clear` → lùi cả ngọn ra xa theo hướng của nó, mỗi bước 4 m (nhiễu
+      // giữ theo vị trí cũ — chỉ dời khối, từ xa nhìn không khác). Các ngọn không lấn giữ nguyên chỗ.
+      let dist = d;
+      if (clear) {
+        const cr = Math.cos(ry);
+        const sr = Math.sin(ry);
+        const intrudes = (cx: number, cz: number): boolean => {
+          for (let k = 0; k < pos.count; k++) {
+            if (pos.getY(k) + h / 2 - 2 <= 0) continue;
+            const x = cx + pos.getX(k) * cr + pos.getZ(k) * sr;
+            const z = cz - pos.getX(k) * sr + pos.getZ(k) * cr;
+            if (x > clear.minX && x < clear.maxX && z > clear.minZ && z < clear.maxZ) return true;
+          }
+          return false;
+        };
+        for (let step = 0; step < 60 && intrudes(Math.cos(a) * dist, Math.sin(a) * dist); step++) dist += 4;
+      }
       root.add(
         kit.mesh(g, material, {
-          x: ox,
+          x: Math.cos(a) * dist,
           y: h / 2 - 2,
-          z: oz,
+          z: Math.sin(a) * dist,
           ry,
           castShadow: false,
           receiveShadow: false,

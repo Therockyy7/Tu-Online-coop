@@ -105,7 +105,7 @@ export class Renderer3D {
     this.composer = new EffectComposer(this.renderer, target);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     // AO màn hình (góc tường, chân cột, gầm mái tối lại tự nhiên). Bỏ qua vật thể hiệu ứng (trong suốt, không chịu sáng,
-    // shader riêng, lá cắt alpha) — không thì chúng ghi pháp tuyến giả và sinh quầng tối sai.
+    // shader riêng, lá cắt alpha, sprite) — không thì chúng ghi pháp tuyến giả và sinh quầng tối sai.
     this.gtao = new GTAOPass(this.scene, this.camera, 1, 1);
     this.gtao.output = GTAOPass.OUTPUT.Default;
     this.gtao.blendIntensity = 0.9;
@@ -117,7 +117,7 @@ export class Renderer3D {
         if (!o.visible) return;
         const m = (o as THREE.Mesh).material as (THREE.Material & { isShaderMaterial?: boolean; isMeshBasicMaterial?: boolean }) | undefined;
         const fx = !m || Array.isArray(m) || m.transparent || m.alphaTest > 0 || m.isShaderMaterial || m.isMeshBasicMaterial;
-        if ((o as THREE.Points).isPoints || (o as THREE.Line).isLine || ((o as THREE.Mesh).isMesh && fx)) {
+        if ((o as THREE.Points).isPoints || (o as THREE.Line).isLine || (o as THREE.Sprite).isSprite || ((o as THREE.Mesh).isMesh && fx)) {
           o.visible = false;
           gtaoInternals._visibilityCache.push(o);
         }

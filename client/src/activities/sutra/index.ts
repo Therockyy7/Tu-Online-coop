@@ -1,9 +1,10 @@
 // Đại Pháp Đường (client): đứng ở bồ đoàn bấm E = ngồi xuống nghe kinh (server giữ chỗ). Chỉ ngồi nghe — không có
-// mini-game, không có thưởng. Đang ngồi: E / Esc = đứng dậy. Khung hình điện ảnh: mắt hạ thấp, quay về tượng Phật lớn
+// mini-game, không có thưởng. Đang ngồi: Space = lạy Phật (chắp tay cúi rạp rồi ngồi lại; hoạt ảnh đi theo tư thế đồng
+// bộ qua mạng nên cả phòng cùng thấy), E / Esc = đứng dậy. Khung hình điện ảnh: mắt hạ thấp, quay về tượng Phật lớn
 // trên bệ thờ và ngẩng nhìn mặt tượng, thu hẹp góc nhìn.
 // Nhạc kinh thu sẵn (content/sutra) phát canh theo giờ server nên cả phòng nghe cùng một đoạn như đang tụng trực tiếp:
 // ngồi bồ đoàn = nghe trọn, đứng trong điện = khe khẽ, ngay trước cửa điện = vọng ra rất nhỏ, xa hơn = tạm dừng.
-import { PHAP_DUONG, inZone } from '@shared/index';
+import { PHAP_DUONG, PORTRAIT_BOW, inZone } from '@shared/index';
 import type { SutraOpenData, SutraPublicState } from '@shared/activities/temple';
 import type { RecordedOptions } from '../../audio/api';
 import { SUTRA_TRACKS, type SutraTrack } from '../../content/sutra';
@@ -34,6 +35,8 @@ interface SitUi {
   time: HTMLElement;
   /** Lần vẽ lại dòng thời gian kế tiếp (performance.now). */
   nextAt: number;
+  /** Đang lạy tới lúc này (performance.now) rồi ngồi lại; 0 = đang ngồi yên. Một lạy dài như ở Điện Tăng Đoàn. */
+  bowUntil: number;
 }
 let sit: SitUi | null = null;
 
@@ -284,23 +287,36 @@ export const sutraClient: ActivityClientModule = {
     h('div', 'act-title', '🪷 Đại Pháp Đường', root);
     const track = h('div', 'act-sub', 'Pháp đường đang tĩnh lặng — chưa có bài kinh nào', root);
     const time = h('div', 'sutra-time', '', root);
-    h('div', 'act-hint', 'E / Esc: đứng dậy', root);
-    sit = { overlay, track, time, nextAt: 0 };
+    h('div', 'act-hint', 'Space: lạy Phật · E / Esc: đứng dậy', root);
+    sit = { overlay, track, time, nextAt: 0, bowUntil: 0 };
     renderHud(sit, ctx);
   },
 
   onKey(e, down, ctx) {
-    if (!sit) return false;
-    if (down && !e.repeat && e.code === 'KeyE') ctx.send('stand');
+    const s = sit;
+    if (!s) return false;
+    if (down && !e.repeat) {
+      if (e.code === 'KeyE') ctx.send('stand');
+      else if (e.code === 'Space' && !s.bowUntil) {
+        // Lạy Phật từ bồ đoàn: quỳ lên chắp tay cúi rạp rồi ngồi lại; tiếng chuông gia trì khẽ mỗi lạy.
+        s.bowUntil = performance.now() + PORTRAIT_BOW.bowMs;
+        ctx.setLocalAnim('prostrate');
+        ctx.audio.play('bell_small', { volume: 0.16 });
+      }
+    }
     return ['KeyE', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space'].includes(e.code);
   },
 
   update(_dt, ctx) {
+    const s = sit;
+    const now = performance.now();
+    if (s && s.bowUntil && now >= s.bowUntil) {
+      s.bowUntil = 0;
+      ctx.setLocalAnim('sit');
+    }
     if (SUTRA_TRACKS.length === 0) return;
     askDurations(ctx);
     syncAudio(ctx, planAt(ctx.serverNow() / 1000), quantize(targetLevel(ctx)));
-    const s = sit;
-    const now = performance.now();
     if (s && now >= s.nextAt) {
       s.nextAt = now + 500;
       renderHud(s, ctx);

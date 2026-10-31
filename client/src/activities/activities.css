@@ -934,10 +934,11 @@
   transform: scale(1.15);
 }
 
-/* Đại Pháp Đường — ngồi nghe kinh: HUD lặng lẽ sát đáy màn hình, không che tượng Phật. */
+/* Đại Pháp Đường — ngồi nghe kinh: HUD lặng lẽ gần đáy màn hình, không che tượng Phật (ngang HUD phòng tranh để không
+   đè lên thanh biểu cảm). */
 .sutra-hud {
   top: auto;
-  bottom: calc(6vh + 10px);
+  bottom: calc(9vh + 14px);
   opacity: 0.92;
 }
 .sutra-hud .act-title {

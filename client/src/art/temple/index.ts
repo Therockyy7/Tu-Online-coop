@@ -25,20 +25,48 @@ const SUN_DIR = new THREE.Vector3(30, 52, 34).normalize();
 void prepareBuddha();
 
 /**
+ * Nén chỗ sáng của bầu trời thấy được (HDR, trước phơi sáng): từ `knee` trở lên nén mềm về trần `sky`, thấp hơn ngưỡng
+ * bloom của Chùa (1,6) — nếu không, cả vùng trời rộng quanh mặt trời vượt ngưỡng, bloom tràn thành màn trắng phủ kín
+ * hình mỗi khi nhìn về phía mặt trời. Riêng đĩa mặt trời được sáng tới `sun` để còn quầng nhỏ.
+ */
+const SKY_LIMIT = { knee: 0.9, sky: 1.35, sun: 6 };
+
+/**
  * Đặt thông số bầu trời vật lý (Preetham + mây thể tích của Sky.js) — dùng chung cho bầu trời thấy được và bản chụp IBL.
  * Độ rọi gốc của Sky.js rất cao (ví dụ của three hạ phơi sáng còn 0,5) → nhân `gain` ngay trong shader để giữ phơi sáng 1.
+ * Chỉ bầu trời thấy được (`sunDisc`) mới nén chỗ sáng theo SKY_LIMIT; bản chụp IBL giữ nguyên để ánh sáng cảnh không đổi.
  */
 function tuneSky(sky: Sky, sunDisc: boolean, gain: number): void {
   const m = sky.material;
   if (!m.uniforms.uSkyGain) {
     m.uniforms.uSkyGain = { value: gain };
+    m.uniforms.uSkyKnee = { value: 0 };
+    m.uniforms.uSkyMax = { value: 0 };
+    m.uniforms.uSunMax = { value: 0 };
+    // Trần riêng cho đĩa mặt trời dựa vào biến `sundisc` của shader Sky.js; bản three khác không có thì đĩa chung trần.
+    const discLimit = m.fragmentShader.includes('float sundisc') ? 'mix( uSkyMax, uSunMax, sundisc )' : 'uSkyMax';
     m.fragmentShader = m.fragmentShader
-      .replace('uniform float time;', 'uniform float time;\nuniform float uSkyGain;')
-      .replace('gl_FragColor = vec4( texColor, 1.0 );', 'gl_FragColor = vec4( texColor * uSkyGain, 1.0 );');
+      .replace('uniform float time;', 'uniform float time;\nuniform float uSkyGain;\nuniform float uSkyKnee;\nuniform float uSkyMax;\nuniform float uSunMax;')
+      .replace(
+        'gl_FragColor = vec4( texColor, 1.0 );',
+        [
+          'vec3 skyC = texColor * uSkyGain;',
+          'float skyPk = max( max( skyC.r, skyC.g ), skyC.b );',
+          `float skyLim = ${discLimit};`,
+          'if ( skyPk > uSkyKnee ) {',
+          '  float room = max( skyLim - uSkyKnee, 1e-3 );',
+          '  skyC *= ( uSkyKnee + room * ( 1.0 - exp( ( uSkyKnee - skyPk ) / room ) ) ) / skyPk;',
+          '}',
+          'gl_FragColor = vec4( skyC, 1.0 );',
+        ].join('\n'),
+      );
     m.needsUpdate = true;
   }
   m.uniforms.uSkyGain.value = gain;
   const u = m.uniforms;
+  u.uSkyKnee!.value = sunDisc ? SKY_LIMIT.knee : 1e9; // 1e9 = không bao giờ nén (tránh Infinity trong uniform)
+  u.uSkyMax!.value = SKY_LIMIT.sky;
+  u.uSunMax!.value = SKY_LIMIT.sun;
   u.turbidity!.value = 4.2;
   u.rayleigh!.value = 1.55;
   u.mieCoefficient!.value = 0.0045;
@@ -85,12 +113,19 @@ export const buildTemple: WorldBuilder = (map, kit = defaultKit): WorldHandles =
   sky.frustumCulled = false;
   tuneSky(sky, true, 0.5);
   root.add(sky);
+  // Map đã mở rộng lên phía Bắc tới sát dãy núi gần → chừa khung phẳng của khuôn viên (biên đi lại nới 5 m, xem
+  // ground.ts) thêm 8 m để không ngọn núi nào mọc xuyên vào chùa.
+  const b = map.bounds;
   root.add(
-    createMountains(11, [
-      { dist: [120, 165], height: [18, 38], colors: ['#4c6b3a', '#56753f', '#47643a'], count: 26 },
-      { dist: [200, 260], height: [45, 85], colors: ['#4f6646', '#58704c', '#4a5f45'], count: 22 },
-      { dist: [300, 360], height: [70, 120], colors: ['#5a6b5c', '#62735f'], count: 18 },
-    ]),
+    createMountains(
+      11,
+      [
+        { dist: [120, 165], height: [18, 38], colors: ['#4c6b3a', '#56753f', '#47643a'], count: 26 },
+        { dist: [200, 260], height: [45, 85], colors: ['#4f6646', '#58704c', '#4a5f45'], count: 22 },
+        { dist: [300, 360], height: [70, 120], colors: ['#5a6b5c', '#62735f'], count: 18 },
+      ],
+      { minX: b.minX - 13, maxX: b.maxX + 13, minZ: b.minZ - 13, maxZ: b.maxZ + 13 },
+    ),
   );
 
   buildGround(ctx, map);
