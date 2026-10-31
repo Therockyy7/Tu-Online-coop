@@ -1,0 +1,130 @@
+// HỢP ĐỒNG phần dựng hình 3D: nhân vật (avatar.ts), vật cầm tay (props.ts), map (temple/, bar/).
+import type * as THREE from 'three';
+import type { AnimId, HairId, HeldItem, MapDef, Outfit } from '@shared/index';
+import type { ArtKit } from './kit';
+
+export interface AvatarLook {
+  outfit: Outfit;
+  /** Tu sĩ: 'bald'. NPC có tóc. */
+  hair: HairId;
+  /** Màu da (hex). */
+  skin: string;
+  /** Bộ Phương Trượng: cà sa đỏ thêu kim + mũ Tỳ Lư + tích trượng (đè lên áo đang mặc). */
+  isHost: boolean;
+  vip: boolean;
+  /** Màu nhấn riêng để phân biệt người chơi (khăn/viền nhỏ). */
+  accent?: string;
+}
+
+export interface AvatarHandle {
+  /** Engine đặt position (x, 0, z) và rotation.y = ry. */
+  readonly root: THREE.Group;
+  /** Điểm trên đỉnh đầu (gắn nhãn tên, bong bóng chat). */
+  readonly headAnchor: THREE.Object3D;
+  setLook(look: AvatarLook): void;
+  setHeld(item: HeldItem | null): void;
+  setAnim(anim: AnimId): void;
+  /** dt, time tính bằng giây; speed = tốc độ di chuyển thực (m/s) để chỉnh nhịp bước. */
+  update(dt: number, time: number, speed: number): void;
+  /** 0..100 → mây đen (≥ 50), mây có sấm (≥ 80). */
+  setTapNiem(level: number): void;
+  /** 0..100 → lảo đảo, má đỏ. */
+  setDrunk(level: number): void;
+  /** Mất kết nối → mờ. */
+  setGhost(ghost: boolean): void;
+  /** Viền sáng (hào quang vàng, ban phước xanh…); null = tắt. */
+  setGlow(color: string | null): void;
+  /** Hiệu ứng biến hình khi thăng cấp (~1,5 giây). */
+  playRankUp(): void;
+  dispose(): void;
+}
+
+export type CreateAvatar = (look: AvatarLook) => AvatarHandle;
+export type CreateHeldItemMesh = (item: HeldItem) => THREE.Object3D;
+
+/**
+ * "Viewmodel" ở góc nhìn thứ nhất: đôi tay (tay áo theo màu áo đang mặc) + vật đang cầm, hiển thị trước camera.
+ * Tọa độ theo không gian camera: camera nhìn về −Z, +Y lên, +X sang phải. Engine vẽ nó ở lượt riêng
+ * sau cảnh chính (xóa depth) để không xuyên vào tường.
+ */
+export interface FirstPersonHandle {
+  readonly root: THREE.Group;
+  setLook(look: AvatarLook): void;
+  setHeld(item: HeldItem | null): void;
+  /** Hành động (quét, chẻ, gõ mõ…), đi/đứng (nhún nhẹ khi đi), emote tay (chào, chắp tay, vỗ tay). */
+  setAnim(anim: AnimId): void;
+  /** dt, time tính bằng giây; speed = tốc độ di chuyển thực (m/s). */
+  update(dt: number, time: number, speed: number): void;
+  dispose(): void;
+}
+
+export type CreateFirstPersonView = (look: AvatarLook) => FirstPersonHandle;
+
+/** Điều khiển hình ảnh map cho mini-game. Map không có thì để undefined. */
+export interface WorldControls {
+  // ── Chùa ──
+  /** Hào quang Chánh Điện (tụng kinh đạt combo 20). */
+  setChanhDienGlow?(on: boolean): void;
+  /** Kéo chày chuông lùi, 0..1. */
+  setBellPull?(amount: number): void;
+  /** Chày đập chuông; chuông rung theo độ mạnh 0..1. */
+  hitBell?(strength: number): void;
+  /** Mực nước chum 0..1 theo id trạm (water_jar_N). */
+  setJarLevel?(stationId: string, level: number): void;
+  /** Lửa (0..1) và khói (0..1) của lò. */
+  setStove?(burner: 'rice' | 'pan', state: { fire: number; smoke: number }): void;
+  /** Nén nhang lớn trên đàn tràng: phần còn lại 0..1; null = ẩn (không có lễ). */
+  setAltarIncense?(ratio: number | null): void;
+  /** Điện Tăng Đoàn: chân dung (theo id ảnh, vd 'portrait_3') bừng sáng rồi dịu lại khi vừa xong 1 lễ lạy. */
+  pulsePortrait?(photoId: string): void;
+  // ── Bar ──
+  /** Gọi mỗi phách nhạc: đèn, sàn LED, cầu disco nháy theo. */
+  onBeat?(beatIndex: number, bpm: number): void;
+  /** DJ "Drop!": chớp mạnh, cầu disco quay nhanh vài giây. */
+  drop?(): void;
+  setLightTheme?(theme: 'neon' | 'gold' | 'ocean' | 'fire'): void;
+}
+
+/**
+ * Tên điểm neo (Object3D) để mini-game đặt đồ / điều khiển. Map phải cung cấp đủ các neo của mình:
+ * - Chùa: 'altar_top' (giữa mặt đàn tràng, trục +X dọc chiều dài bàn), 'prep_table_top', 'stove_rice_top',
+ *   'stove_pan_top', 'dining_table_top', 'release_cart_top', 'supply_cart_top', 'tree_root' (gốc bồ đề, mặt đất),
+ *   'cutting_board_top', 'flower_table_top', 'lamp_table_top', 'storage_door', 'gate_wait' (chỗ khách đứng chờ),
+ *   'leaf_ground' (tâm khu lá rụng, mặt đất).
+ * - Bar: 'dj_booth_top', 'bar_counter_top', 'baucua_table_top', 'truth_wheel_disc' (mini-game quay quanh trục Z
+ *   cục bộ), 'exchange_kiosk_top', 'npc_table_top:npc_table_1' … 'npc_table_top:npc_table_6', 'dance_floor_center'.
+ */
+export type AnchorName = string;
+
+export interface WorldEnvironment {
+  background: THREE.Color;
+  fog: THREE.Fog | THREE.FogExp2 | null;
+  /** Đèn của map (engine thêm vào scene). Đèn mặt trời nên castShadow. Đèn có `userData.ambient` sẽ dịu bớt trong nhà. */
+  lights: THREE.Light[];
+  /** Cảnh nguồn để chụp ánh sáng môi trường (IBL) — vd bầu trời vật lý; không có = không IBL. */
+  envScene?: THREE.Scene;
+  /** Cường độ IBL ngoài trời (mặc định 1). */
+  envIntensity?: number;
+  /** Độ phơi sáng tone mapping của map. */
+  exposure?: number;
+}
+
+export interface WorldHandles {
+  /** Gốc toàn bộ map (engine thêm vào scene). */
+  readonly root: THREE.Group;
+  /** Group đặt tại điểm đứng của từng trạm (id → group, đã quay theo station.ry). */
+  readonly stations: ReadonlyMap<string, THREE.Group>;
+  /**
+   * Mái nhà theo RoofDef.id. Ở góc nhìn thứ nhất mái LUÔN hiện (người chơi đứng trong nhà thấy trần/mặt dưới mái);
+   * engine chỉ có thể ẩn khi ở chế độ xem góc thứ ba (V) mà camera lọt vào trong nhà.
+   */
+  readonly roofs: ReadonlyMap<string, THREE.Object3D>;
+  readonly anchors: ReadonlyMap<AnchorName, THREE.Object3D>;
+  readonly environment: WorldEnvironment;
+  readonly controls: WorldControls;
+  /** Hoạt ảnh nền mỗi khung hình (dt, time tính bằng giây). */
+  update(dt: number, time: number): void;
+  dispose(): void;
+}
+
+export type WorldBuilder = (map: MapDef, kit: ArtKit) => WorldHandles;

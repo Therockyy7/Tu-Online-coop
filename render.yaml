@@ -1,0 +1,16 @@
+# Render Blueprint — deploy Tu Online lên Render (gói free, region Singapore gần Việt Nam).
+# Hướng dẫn từng bước: README.md mục "Deploy lên Render".
+services:
+  - type: web
+    name: tu-online
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      # Dán connection string MongoDB Atlas trong dashboard Render (không commit vào git).
+      - key: MONGODB_URI
+        sync: false

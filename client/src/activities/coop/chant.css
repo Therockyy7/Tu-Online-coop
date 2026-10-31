@@ -1,0 +1,979 @@
+/* Công phu tụng kinh — sân khấu kiểu osu! × Audition: nền sơn mài tối + hoa sen chìm, vòng tròn bóng,
+   vòng tiếp cận phát sáng, chấm nối, nốt ngân có bi trượt, cánh sen bung khi gõ trúng. */
+
+/* Đang tụng kinh: làm mờ HUD góc màn hình, ẩn tâm ngắm để sân khấu nổi bật. */
+#ui:has(> .overlay[data-overlay='chant']) .hud {
+  opacity: 0.25;
+  transition: opacity 0.4s;
+}
+#ui:has(> .overlay[data-overlay='chant']) .crosshair,
+#ui:has(> .overlay[data-overlay='chant']) .pointer-hint {
+  display: none;
+}
+
+.ch-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #fff;
+  font-family: var(--font-body);
+}
+.ch-dim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 55%, rgba(18, 9, 3, 0.28) 0%, rgba(14, 7, 2, 0.6) 58%, rgba(8, 4, 1, 0.82) 100%);
+  animation: ch-fade-in 0.6s ease both;
+}
+.ch-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  /* Chừa ~75px mỗi bên cho cột phím ← ↑ → ↓ ␣ nằm ngoài mép phải sân khấu (cửa sổ hẹp không bị cắt). */
+  width: min(1080px, calc(100vw - 150px), calc((100vh - 210px) * 4 / 3));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: ch-rise 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/* ── Hàng đầu: Định lực · tên kinh · điểm ── */
+.ch-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 14px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+.ch-hp {
+  max-width: 260px;
+}
+.ch-label {
+  font: 700 12px var(--font-body);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
+  margin-bottom: 3px;
+}
+.ch-hp-bar {
+  height: 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 230, 180, 0.4);
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+}
+.ch-hp-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #3fd0a0, #b5e88f 55%, #ffd166);
+  box-shadow: 0 0 12px rgba(181, 232, 143, 0.7);
+  transition: transform 0.18s ease-out;
+}
+.ch-hp.low .ch-hp-fill {
+  background: linear-gradient(90deg, #ff3b30, #ff9f43);
+  animation: ch-pulse 0.45s ease-in-out infinite alternate;
+}
+/* Cỡ chữ hàng đầu co theo bề rộng cửa sổ để dãy điểm 8 chữ số không tràn mép phải khi cửa sổ hẹp. */
+.ch-title {
+  text-align: center;
+  min-width: min(260px, 34vw);
+}
+.ch-title b {
+  display: block;
+  font: 800 clamp(18px, 2vw, 25px) / 1.1 var(--font-title);
+  letter-spacing: 0.4px;
+  background: linear-gradient(180deg, #fff6d8, #ffd166 60%, #f0a73a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.75));
+}
+.ch-title span {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  opacity: 0.92;
+  margin-top: 1px;
+}
+.ch-prog {
+  height: 4px;
+  margin: 5px auto 0;
+  width: min(220px, 100%);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+.ch-prog i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #ffd166, #ff9f43);
+  box-shadow: 0 0 8px #ffb347;
+}
+.ch-scorebox {
+  text-align: right;
+  justify-self: end;
+}
+.ch-score {
+  font: 800 clamp(22px, 2.6vw, 32px) / 1 var(--font-title);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1.5px;
+  color: #fffaf0;
+}
+.ch-acc {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  font: 700 clamp(13px, 1.4vw, 17px) var(--font-title);
+  font-variant-numeric: tabular-nums;
+}
+.ch-pie {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: conic-gradient(#fff var(--p, 100%), rgba(255, 255, 255, 0.12) 0);
+}
+
+/* ── Hàng đội: combo đồng điệu + người tụng ── */
+.ch-team {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  min-height: 28px;
+}
+.ch-team-combo {
+  font: 800 18px var(--font-title);
+  padding: 2px 14px;
+  border-radius: 999px;
+  background: rgba(20, 10, 4, 0.55);
+  border: 1px solid rgba(255, 220, 160, 0.3);
+  transition:
+    color 0.2s,
+    background 0.2s;
+}
+.ch-team-combo.on {
+  color: #b5e88f;
+}
+.ch-team-combo.gold {
+  color: #3a2410;
+  background: linear-gradient(90deg, #ffe08a, #ffc94a);
+  box-shadow: 0 0 18px rgba(255, 201, 74, 0.8);
+}
+.ch-team-combo.broken {
+  color: #ff8a80;
+  animation: ch-shake 0.35s;
+}
+.ch-team-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: 70%;
+}
+.ch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px 2px 6px;
+  border-radius: 999px;
+  font: 600 12px var(--font-body);
+  background: rgba(20, 10, 4, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  max-width: 150px;
+}
+.ch-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ch-chip.me {
+  border-color: rgba(255, 209, 102, 0.8);
+}
+.ch-chip i {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+}
+.ch-chip.perfect i {
+  background: #8fe3ff;
+  box-shadow: 0 0 6px #39b6ff;
+}
+.ch-chip.good i {
+  background: #a6ef7a;
+}
+.ch-chip.miss i {
+  background: #ff5a4f;
+  box-shadow: 0 0 6px #ff3b30;
+}
+
+/* ── Sân khấu 4:3 ── */
+.ch-field {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  container-type: inline-size;
+  border-radius: 26px;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(110, 50, 18, 0.24), transparent 65%),
+    linear-gradient(180deg, rgba(40, 18, 6, 0.35), rgba(16, 8, 3, 0.45));
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255, 214, 140, 0.28),
+    inset 0 0 70px rgba(255, 170, 60, 0.08),
+    0 18px 50px rgba(0, 0, 0, 0.35);
+  transition: box-shadow 0.5s;
+}
+.ch-field::before,
+.ch-field::after {
+  /* Hoa văn góc vàng đồng. */
+  content: '';
+  position: absolute;
+  width: 7cqw;
+  height: 7cqw;
+  border: 0.35cqw solid rgba(255, 209, 102, 0.45);
+  pointer-events: none;
+}
+.ch-field::before {
+  left: 1.4cqw;
+  top: 1.4cqw;
+  border-right: none;
+  border-bottom: none;
+  border-top-left-radius: 2.4cqw;
+}
+.ch-field::after {
+  right: 1.4cqw;
+  bottom: 1.4cqw;
+  border-left: none;
+  border-top: none;
+  border-bottom-right-radius: 2.4cqw;
+}
+.ch-field.aura {
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 209, 102, 0.85),
+    inset 0 0 90px rgba(255, 190, 80, 0.3),
+    0 0 46px rgba(255, 190, 80, 0.55);
+  animation: ch-aura 1.6s ease-in-out infinite alternate;
+}
+.ch-field.shake {
+  animation: ch-shake 0.32s;
+}
+.ch-mandala {
+  /* Hoa sen chìm giữa sân khấu, xoay rất chậm. */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46cqw;
+  height: 46cqw;
+  margin: -23cqw 0 0 -23cqw;
+  border-radius: 50%;
+  opacity: 0.16;
+  background:
+    radial-gradient(circle, rgba(255, 209, 102, 0.9) 0 4%, transparent 4.5%),
+    radial-gradient(circle, transparent 0 17%, rgba(255, 209, 102, 0.8) 17.5% 18.5%, transparent 19%),
+    repeating-conic-gradient(from 0deg, rgba(255, 190, 90, 0.85) 0deg 9deg, transparent 9deg 22.5deg),
+    radial-gradient(circle, transparent 0 46%, rgba(255, 209, 102, 0.7) 46.5% 47.5%, transparent 48%);
+  -webkit-mask: radial-gradient(circle, #000 0 49%, transparent 50%);
+  mask: radial-gradient(circle, #000 0 49%, transparent 50%);
+  animation: ch-spin 60s linear infinite;
+}
+.ch-layer {
+  position: absolute;
+  inset: 0;
+}
+
+/* ── Nốt ── */
+.ch-note {
+  --c: #ff9f43;
+  position: absolute;
+  width: 9cqw;
+  height: 9cqw;
+  margin: -4.5cqw 0 0 -4.5cqw;
+  opacity: 0;
+}
+.ch-note.khanh {
+  width: 11cqw;
+  height: 11cqw;
+  margin: -5.5cqw 0 0 -5.5cqw;
+}
+.ch-body {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.75) 0 9%, transparent 30%),
+    radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--c) 80%, white) 0%, var(--c) 52%, color-mix(in srgb, var(--c) 55%, black) 100%);
+  border: 0.55cqw solid #fff;
+  box-shadow:
+    0 0.5cqw 1.4cqw rgba(0, 0, 0, 0.55),
+    0 0 1.6cqw color-mix(in srgb, var(--c) 70%, transparent),
+    inset 0 -0.7cqw 1.1cqw rgba(0, 0, 0, 0.28);
+}
+.ch-body svg {
+  width: 54%;
+  height: 54%;
+  fill: #fff;
+  filter: drop-shadow(0 0.25cqw 0.3cqw rgba(0, 0, 0, 0.5));
+}
+.ch-note.khanh .ch-body {
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.9) 0 10%, transparent 32%),
+    radial-gradient(circle at 50% 62%, #fff3c4 0%, #ffc94a 50%, #a8680a 100%);
+  border-color: #fff6d8;
+  box-shadow:
+    0 0.5cqw 1.4cqw rgba(0, 0, 0, 0.55),
+    0 0 2.4cqw rgba(255, 201, 74, 0.85),
+    inset 0 -0.8cqw 1.2cqw rgba(120, 60, 0, 0.35);
+}
+.ch-note.khanh .ch-body svg {
+  fill: #5a3205;
+  filter: none;
+}
+.ch-ring {
+  position: absolute;
+  inset: -0.2cqw;
+  border-radius: 50%;
+  border: 0.5cqw solid var(--c);
+  box-shadow:
+    0 0 1cqw var(--c),
+    inset 0 0 0.6cqw var(--c);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.ch-num {
+  position: absolute;
+  right: -7%;
+  top: -7%;
+  min-width: 3.3cqw;
+  height: 3.3cqw;
+  padding: 0 0.7cqw;
+  border-radius: 1.7cqw;
+  background: #2a1608;
+  border: 0.3cqw solid #fff;
+  font: 800 2cqw/2.75cqw var(--font-title);
+  text-align: center;
+  box-shadow: 0 0.2cqw 0.6cqw rgba(0, 0, 0, 0.5);
+}
+.ch-tag {
+  position: absolute;
+  left: 50%;
+  bottom: -2.9cqw;
+  transform: translateX(-50%);
+  padding: 0.15cqw 0.9cqw;
+  border-radius: 1cqw;
+  font: 800 1.45cqw/1.6 var(--font-title);
+  letter-spacing: 0.15cqw;
+  white-space: nowrap;
+  color: #3a2410;
+  background: #fff1c2;
+  box-shadow: 0 0.2cqw 0.5cqw rgba(0, 0, 0, 0.45);
+}
+.ch-tag.rev {
+  color: #fff;
+  background: #e5322d;
+  animation: ch-pulse 0.4s ease-in-out infinite alternate;
+}
+.ch-tag.hold {
+  color: #fff;
+  background: color-mix(in srgb, var(--c) 75%, black);
+}
+.ch-note.holding .ch-body {
+  opacity: 0.35;
+}
+.ch-note.holding .ch-num,
+.ch-note.holding .ch-tag {
+  display: none;
+}
+.ch-note.hit {
+  animation: ch-burst-out 0.26s ease-out forwards !important;
+}
+.ch-note.miss {
+  animation: ch-miss-fall 0.32s ease-in forwards !important;
+}
+
+/* ── Nốt ngân: thân trượt + đuôi + bi ── */
+.ch-slider {
+  --c: #ff9f43;
+  position: absolute;
+  height: 9cqw;
+  border-radius: 4.5cqw;
+  transform-origin: 4.5cqw 50%;
+  background: linear-gradient(180deg, rgba(30, 14, 5, 0.62), rgba(12, 6, 2, 0.72));
+  border: 0.5cqw solid var(--c);
+  box-shadow:
+    0 0 1.4cqw color-mix(in srgb, var(--c) 65%, transparent),
+    inset 0 0 1.6cqw color-mix(in srgb, var(--c) 45%, transparent);
+  opacity: 0;
+}
+.ch-tail {
+  --c: #ff9f43;
+  position: absolute;
+  width: 7cqw;
+  height: 7cqw;
+  margin: -3.5cqw 0 0 -3.5cqw;
+  border-radius: 50%;
+  border: 0.45cqw dashed rgba(255, 255, 255, 0.85);
+  background: color-mix(in srgb, var(--c) 30%, transparent);
+}
+.ch-ball {
+  --c: #ff9f43;
+  position: absolute;
+  width: 6cqw;
+  height: 6cqw;
+  margin: -3cqw 0 0 -3cqw;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff 0 30%, color-mix(in srgb, var(--c) 60%, white) 45%, var(--c) 100%);
+  box-shadow: 0 0 1.2cqw var(--c);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.ch-ball.on {
+  opacity: 1;
+}
+.ch-ball.on::after {
+  /* Vòng theo bi (follow circle) khi đang giữ đúng. */
+  content: '';
+  position: absolute;
+  inset: -55%;
+  border-radius: 50%;
+  border: 0.4cqw solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 1cqw rgba(255, 255, 255, 0.6);
+  animation: ch-follow-pulse 0.5s ease-in-out infinite alternate;
+}
+.ch-slider.fade,
+.ch-tail.fade,
+.ch-ball.fade {
+  animation: ch-fade-out 0.25s ease-out forwards;
+}
+.ch-slider.miss,
+.ch-tail.miss,
+.ch-ball.miss {
+  filter: grayscale(1);
+  animation: ch-fade-out 0.3s ease-in forwards;
+}
+
+/* ── Chấm nối giữa hai nốt liên tiếp ── */
+.ch-follow {
+  position: absolute;
+  height: 1.2cqw;
+  transform-origin: 0 50%;
+  background: radial-gradient(circle, rgba(255, 240, 210, 0.95) 0 0.32cqw, transparent 0.38cqw) 0 50% / 2.4cqw 1.2cqw repeat-x;
+  filter: drop-shadow(0 0 0.4cqw rgba(255, 209, 102, 0.7));
+}
+
+/* ── Hiệu ứng trúng / trượt ── */
+.ch-burst {
+  --c: #ffd166;
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.ch-burst::before {
+  content: '';
+  position: absolute;
+  left: -5cqw;
+  top: -5cqw;
+  width: 10cqw;
+  height: 10cqw;
+  border-radius: 50%;
+  border: 0.6cqw solid var(--c);
+  animation: ch-ring-out 0.45s ease-out forwards;
+}
+.ch-burst i {
+  position: absolute;
+  left: -0.9cqw;
+  top: -1.6cqw;
+  width: 1.8cqw;
+  height: 3.2cqw;
+  border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
+  background: linear-gradient(180deg, #fff, var(--c));
+  transform: rotate(var(--a)) translateY(0);
+  animation: ch-petal 0.55s ease-out forwards;
+}
+.ch-pop {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font: 800 3.6cqw/1 var(--font-title);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: ch-pop 0.65s ease-out forwards;
+  z-index: 20000;
+}
+.ch-pop.p300 {
+  color: #8fe3ff;
+  text-shadow:
+    0 0 1.2cqw #39b6ff,
+    0 0.25cqw 0.3cqw rgba(0, 0, 0, 0.7);
+}
+.ch-pop.p100 {
+  color: #b5f28a;
+  text-shadow:
+    0 0 1cqw #4caf50,
+    0 0.25cqw 0.3cqw rgba(0, 0, 0, 0.7);
+}
+.ch-pop.miss {
+  color: #ff5a4f;
+  font-size: 4.6cqw;
+  text-shadow:
+    0 0 1cqw #b8322a,
+    0 0.25cqw 0.3cqw rgba(0, 0, 0, 0.7);
+}
+.ch-pop.small {
+  font-size: 2.6cqw;
+}
+.ch-pop.zen {
+  font-size: 4.4cqw;
+  color: #ffe08a;
+  text-shadow:
+    0 0 1.6cqw #ffb347,
+    0 0 3cqw rgba(255, 140, 0, 0.6),
+    0 0.3cqw 0.3cqw rgba(0, 0, 0, 0.7);
+  animation: ch-zen 1.15s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+
+/* ── Combo, phím, thông báo giữa ── */
+.ch-combo {
+  position: absolute;
+  left: 2.2cqw;
+  bottom: 1.6cqw;
+  font: 800 6.4cqw/1 var(--font-title);
+  font-variant-numeric: tabular-nums;
+  color: #fffaf0;
+  text-shadow:
+    0 0.35cqw 1.2cqw rgba(0, 0, 0, 0.7),
+    0 0 1.4cqw rgba(255, 209, 102, 0.35);
+  transform-origin: left bottom;
+}
+.ch-combo.bump {
+  animation: ch-bump 0.14s ease-out;
+}
+.ch-keys {
+  position: absolute;
+  right: -62px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  gap: 7px;
+}
+.ch-k {
+  width: 48px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  border-radius: 11px;
+  background: rgba(22, 12, 5, 0.7);
+  border: 2px solid rgba(255, 230, 180, 0.45);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+  transition:
+    transform 0.06s,
+    background 0.06s;
+}
+.ch-k b {
+  font: 800 18px/1 var(--font-title);
+}
+.ch-k small {
+  font: 700 10px/1.2 var(--font-body);
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+.ch-k.khanh {
+  border-color: rgba(255, 209, 102, 0.7);
+}
+.ch-k.on {
+  transform: translateY(2px) scale(1.06);
+  background: linear-gradient(#ffe08a, #f0b54a);
+  color: #3a2410;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+.ch-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 20001;
+}
+.ch-msg {
+  text-align: center;
+  text-shadow: 0 0.4cqw 1.6cqw rgba(0, 0, 0, 0.8);
+}
+.ch-msg-big {
+  font: 800 6cqw/1.05 var(--font-title);
+  color: #fff3c4;
+}
+.ch-msg-small {
+  margin-top: 0.8cqw;
+  font: 700 2cqw var(--font-body);
+  opacity: 0.92;
+}
+.ch-msg.count .ch-msg-big {
+  font-size: 15cqw;
+  background: linear-gradient(180deg, #fff, #ffd166 60%, #ff9f43);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0.5cqw 1.2cqw rgba(0, 0, 0, 0.7));
+  animation: ch-count 0.95s ease-out both;
+}
+.ch-msg.go .ch-msg-big {
+  font-size: 5cqw;
+  color: #ffe08a;
+  text-shadow:
+    0 0 1.6cqw #ffb347,
+    0 0.4cqw 1.6cqw rgba(0, 0, 0, 0.8);
+  animation: ch-go 0.9s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+/* ── Thước lệch nhịp (hit error) ── */
+.ch-err {
+  position: relative;
+  align-self: center;
+  width: min(280px, 50%);
+  height: 14px;
+  margin-top: 2px;
+}
+.ch-err > i {
+  position: absolute;
+  top: 5px;
+  height: 4px;
+  border-radius: 2px;
+}
+.ch-err-good {
+  left: calc(50% - (100 / 150) * 50%);
+  right: calc(50% - (100 / 150) * 50%);
+  background: rgba(166, 239, 122, 0.65);
+}
+.ch-err-perfect {
+  left: calc(50% - (45 / 150) * 50%);
+  right: calc(50% - (45 / 150) * 50%);
+  background: rgba(143, 227, 255, 0.9);
+}
+.ch-err-mid {
+  left: calc(50% - 1px);
+  width: 2px;
+  top: 0 !important;
+  height: 14px !important;
+  background: #fff;
+}
+.ch-err-tick {
+  position: absolute;
+  top: 1px;
+  width: 3px;
+  height: 12px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  animation: ch-fade-out 2.6s ease-in forwards;
+}
+.ch-err-tick.p {
+  background: #8fe3ff;
+}
+.ch-err-tick.g {
+  background: #b5f28a;
+}
+.ch-hint {
+  text-align: center;
+  font: 600 12.5px var(--font-body);
+  opacity: 0.9;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* ── Bảng xếp hạng cuối bài ── */
+.ch-result {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  padding: 22px 30px 22px 22px;
+  border-radius: 28px;
+  color: #fff;
+  background: linear-gradient(160deg, rgba(48, 22, 8, 0.92), rgba(18, 9, 3, 0.94));
+  border: 2px solid rgba(255, 209, 102, 0.6);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.55),
+    0 0 40px rgba(255, 190, 80, 0.25);
+  animation:
+    ch-result-in 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) both,
+    ch-fade-out 0.6s ease-in 8.4s forwards;
+}
+.ch-grade {
+  width: 132px;
+  height: 132px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font: 800 82px/1 var(--font-title);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.25), rgba(0, 0, 0, 0.25));
+  border: 4px solid currentColor;
+  text-shadow: 0 0 22px currentColor;
+  box-shadow: 0 0 30px color-mix(in srgb, currentColor 45%, transparent);
+  animation: ch-grade-in 0.7s cubic-bezier(0.2, 1.5, 0.4, 1) 0.15s both;
+}
+.ch-grade.g-SS {
+  color: #fff3c4;
+}
+.ch-grade.g-S {
+  color: #ffd166;
+}
+.ch-grade.g-A {
+  color: #74cf86;
+}
+.ch-grade.g-B {
+  color: #5cc2ff;
+}
+.ch-grade.g-C {
+  color: #c9a2ff;
+}
+.ch-grade.g-D {
+  color: #ff6b5f;
+}
+.ch-rinfo {
+  min-width: 300px;
+}
+.ch-rtitle {
+  font: 800 24px var(--font-title);
+  color: #ffe08a;
+}
+.ch-rcap {
+  font: 600 13.5px var(--font-body);
+  opacity: 0.9;
+}
+.ch-rscore {
+  margin: 4px 0 6px;
+  font: 800 40px/1 var(--font-title);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 2px;
+}
+.ch-rrow {
+  display: flex;
+  gap: 18px;
+  font: 700 17px var(--font-title);
+}
+.ch-rcell b {
+  margin-right: 5px;
+}
+.ch-rcell b.p300 {
+  color: #8fe3ff;
+}
+.ch-rcell b.p100 {
+  color: #b5f28a;
+}
+.ch-rcell b.miss {
+  color: #ff5a4f;
+}
+.ch-rmeta {
+  margin-top: 6px;
+  font: 600 13px var(--font-body);
+  opacity: 0.9;
+}
+
+/* ── Keyframes ── */
+@keyframes ch-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ch-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes ch-rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.97);
+  }
+}
+@keyframes ch-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ch-pulse {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(1.45);
+  }
+}
+@keyframes ch-aura {
+  to {
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 230, 150, 1),
+      inset 0 0 110px rgba(255, 200, 90, 0.38),
+      0 0 64px rgba(255, 200, 90, 0.7);
+  }
+}
+@keyframes ch-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-9px);
+  }
+  40% {
+    transform: translateX(8px);
+  }
+  60% {
+    transform: translateX(-5px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+@keyframes ch-burst-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+    filter: brightness(2);
+  }
+}
+@keyframes ch-miss-fall {
+  0% {
+    opacity: 0.9;
+    filter: grayscale(1);
+  }
+  100% {
+    opacity: 0;
+    filter: grayscale(1);
+    transform: translateY(3cqw) rotate(-8deg) scale(0.9);
+  }
+}
+@keyframes ch-ring-out {
+  from {
+    opacity: 0.95;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+@keyframes ch-petal {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--a)) translateY(-1cqw) scale(0.7);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(-8cqw) scale(1.05);
+  }
+}
+@keyframes ch-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -60%) scale(1.15);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -80%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -110%) scale(0.95);
+  }
+}
+@keyframes ch-zen {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3) rotate(-6deg);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(-50%, -70%) scale(1.25) rotate(2deg);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -90%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -120%) scale(0.95);
+  }
+}
+@keyframes ch-go {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes ch-bump {
+  50% {
+    transform: scale(1.18);
+  }
+}
+@keyframes ch-follow-pulse {
+  to {
+    transform: scale(1.08);
+    opacity: 0.75;
+  }
+}
+@keyframes ch-count {
+  0% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.15;
+    transform: scale(0.85);
+  }
+}
+@keyframes ch-result-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.85);
+  }
+}
+@keyframes ch-grade-in {
+  from {
+    opacity: 0;
+    transform: scale(2.4) rotate(-14deg);
+  }
+}
+@media (max-height: 760px) {
+  .ch-title b {
+    font-size: 21px;
+  }
+  .ch-score {
+    font-size: 26px;
+  }
+  .ch-hint {
+    display: none;
+  }
+}
