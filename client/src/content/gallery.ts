@@ -1,5 +1,6 @@
-// Ảnh chân dung thờ trong Điện Tăng Đoàn (1–3 tường Tây, 4–6 tường Đông). Ảnh gốc do user cung cấp,
-// đã thu nhỏ (cạnh dài ≤ 1280px). Muốn ghi tên dưới tranh (và trong gợi ý quỳ lạy): điền `caption`.
+// Ảnh chân dung các Sư Thầy được tuyên dương trong Điện Tăng Đoàn (1–3 tường Tây, 4–6 tường Đông) — mỗi vị một lĩnh vực
+// lời khuyên. Ảnh gốc do user cung cấp, đã thu nhỏ (cạnh dài ≤ 1280px). Muốn ghi tên trên bảng tên dưới khung (và trong
+// gợi ý đảnh lễ): điền `caption`.
 import portrait1 from './gallery/portrait_1.jpg';
 import portrait2 from './gallery/portrait_2.jpg';
 import portrait3 from './gallery/portrait_3.jpg';
@@ -13,16 +14,20 @@ export interface GalleryPhoto {
   url: string;
   width: number;
   height: number;
-  /** Tên/chú thích hiện trên bảng đồng dưới khung; rỗng = không hiện. */
+  /** Tên hiện trên bảng tên dưới khung và trong HUD ("Sư Thầy <tên>"); rỗng = chỉ ghi "Sư Thầy". */
   caption: string;
 }
 
 export const GALLERY_TITLE = 'Tăng Đoàn Tu Online';
 
-/** Tâm chân dung cao chừng này trên khám thờ (m) — camera quỳ lạy ngẩng nhìn vào đây. */
-export const PORTRAIT_CENTER_Y = 1.62;
-/** Chiều cao phần ảnh trong khung (m). */
-export const PORTRAIT_HEIGHT = 1.12;
+/**
+ * Tâm ảnh trên khung vinh danh (m) — camera quỳ (mắt 0,75 m, cách tường 1,55 m) ngẩng nhìn vào đây. Với 1,8 m, dải tường
+ * thấy được giữa hai dải đen điện ảnh ≈ 0,93–3,0 m: bảng tên (≈ 1,1–1,2 m, sát mép trên HUD), ảnh, bảng tên lĩnh vực + khẩu
+ * hiệu (≈ 2,45–2,95 m) đều nằm trọn trong dải đó.
+ */
+export const PORTRAIT_CENTER_Y = 1.8;
+/** Chiều cao phần ảnh trong khung (m); ảnh ngang bị giới hạn rộng 1 m (chiều cao giảm theo). */
+export const PORTRAIT_HEIGHT = 1.0;
 
 export const GALLERY_PHOTOS: GalleryPhoto[] = [
   { id: 'portrait_1', url: portrait1, width: 1024, height: 1024, caption: '' },

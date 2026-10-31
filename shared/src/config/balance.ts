@@ -144,7 +144,7 @@ export const MEDITATE = {
   durationSlackMs: 2000,
 } as const;
 
-/** Quỳ lạy chân dung ở Điện Tăng Đoàn. */
+/** Đảnh lễ chân dung Sư Thầy ở Điện Tăng Đoàn (mỗi lễ được bóc một lá quẻ ở client). */
 export const PORTRAIT_BOW = {
   /** Thời gian 1 lạy (cúi rạp + ngẩng lên); server chặn lạy dồn nhanh hơn `minIntervalMs`. */
   bowMs: 1800,

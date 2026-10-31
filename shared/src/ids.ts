@@ -22,7 +22,7 @@ export const ACTIVITY_IDS = [
   'guest', // Tri Khách: đón khách vãng lai
   'restock', // Tri Khách: nhập kho đồ chay
   'wardrobe', // Tủ áo
-  'gallery', // Điện Tăng Đoàn — quỳ lạy chân dung (3 lạy được Công Đức) + xem ảnh lớn
+  'gallery', // Điện Tăng Đoàn — đảnh lễ chân dung Sư Thầy (3 lạy được Công Đức) rồi bóc quẻ lời khuyên + xem ảnh lớn
   'sutra', // Đại Pháp Đường — ngồi bồ đoàn nghe kinh (nhạc kinh thu sẵn, cả phòng nghe cùng một đoạn)
   // Bar
   'exchange', // Quầy đổi Đức

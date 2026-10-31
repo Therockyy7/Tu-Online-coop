@@ -100,7 +100,7 @@ export interface MeditateOpenData {
   durationMs: number;
 }
 
-// ───────────── Điện Tăng Đoàn: quỳ lạy chân dung ─────────────
+// ───────────── Điện Tăng Đoàn: đảnh lễ chân dung Sư Thầy, bóc quẻ ─────────────
 
 /** Ai đang quỳ ở bồ đoàn chân dung nào (stationId → pid). */
 export interface GalleryPublicState {

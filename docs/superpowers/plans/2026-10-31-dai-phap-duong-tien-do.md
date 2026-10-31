@@ -6,6 +6,10 @@ giữa chừng vì **chạm giới hạn phiên (session limit)** khi chạy 5 a
 > **Trạng thái 2026-10-31 chiều: ĐÃ XONG** 17/17 mục bên dưới (gồm 2 yêu cầu thêm: lạy Phật khi ngồi nghe kinh, bầu
 > trời bớt chói). Đã thử trong game, typecheck sạch, 164 test pass, build OK. Việc còn lại chỉ là tinh chỉnh tuỳ chọn —
 > xem mục "Còn mở / có thể làm tiếp".
+>
+> **Cập nhật 2026-10-31 ~16:00: Điện Tăng Đoàn vinh danh + bóc quẻ ĐÃ XONG** (mục 18–20): điện dựng lại + phản biện,
+> 291 lá quẻ ở 6 lĩnh vực (công cụ kiểm 0 lỗi), đã thử trong game lạy + bóc quẻ ở cả 6 ảnh, typecheck sạch, 164 test
+> pass, build OK.
 
 ## Yêu cầu gốc của user (nguyên văn)
 
@@ -22,6 +26,59 @@ giữa chừng vì **chạm giới hạn phiên (session limit)** khi chạy 5 a
 
 > (2026-10-31 chiều, kèm ảnh chụp nhìn về phía mặt trời bị trắng xoá) Bầu trời đang bị chói quá, đồng thời tại Đại pháp
 > đường, tôi muốn thêm hành động lày phật khi đang ngồi nghe kinh
+
+> (2026-10-31 chiều) Tại Điện tăng đoàn, tôi muốn nó là nơi tôn vinh các Sư chứ không phải là nơi tưởng nệm, giống như
+> nó là nơi tuyên dương các sư thầy. Hiện tại Điện tăng đoàn giống như thờ cúng không tốt vì những người này vẫn còn
+> sống . làm Lại Điện tăng đoàn cho trang nghiêm hoành tráng hơn. Đồng thời trong 6 bước ảnh, mỗi người sẻ cho lời
+> khuyên trong từng lĩnh vực như: [Công danh & Sự nghiệp — cơ hội thăng tiến, chuyển việc, đổi ngành hoặc thi cử; thời
+> điểm thích hợp để khởi nghiệp, mở rộng kinh doanh hoặc chọn đối tác làm ăn hợp mệnh/hợp tuổi · Tình duyên & Hôn nhân —
+> bao giờ gặp được ý trung nhân, đường tình duyên có trắc trở không; xem độ hòa hợp tuổi tác, ngày giờ tốt để làm đám
+> cưới, hoặc hướng xử lý khi xảy ra xung đột vợ chồng · Tài lộc & Tiền bạc — vận may tài chính ngắn hạn (thưởng, đầu
+> tư, trúng số) và dài hạn (tích lũy tài sản, đất đai, nhà cửa); các hạn hao tài tốn của trong năm để chủ động phòng
+> tránh hoặc quản lý chi tiêu · Sức khỏe & Bình an — thể trạng tổng quát, cơ quan dễ gặp vấn đề theo ngũ hành/cung
+> mệnh; vận hạn về tai nạn, ốm đau, đi lại xa hoặc phẫu thuật trong từng năm/tháng · Gia đạo & Con cái — hòa khí gia
+> đình, mối quan hệ giữa cha mẹ - con cái, anh chị em; đường con cái (thời điểm sinh con, số lượng con, con cái có hiếu
+> thuận hay hợp mệnh bố mẹ không) · Vận hạn niên hạn & Chuyến đi lớn (Xuất hành/Định cư) — năm nay có vướng hạn nặng
+> như Tam Tai, Kim Lâu, Hoang Ốc, Thái Tuế hay không để làm lễ giải hạn hoặc kiêng cữ; thời vận cho việc xuất ngoại, du
+> học, định cư hoặc thay đổi chỗ ở/xây nhà mới] Mỗi khi lạy rồi sau đó bóc quẻ thì sẻ hiện lời khuyên tương ứng, hãy
+> cho thật nhiều lời khuyên cho mỗi lĩnh vực
+>
+> (Danh sách lĩnh vực trong ngoặc vuông là bản gom gọn từ khối user dán vào, giữ nguyên chữ của từng gạch đầu dòng.)
+
+**Điện Tăng Đoàn vinh danh + bóc quẻ (✅ xong 2026-10-31 ~16:00 — xem mục 18–20 trong bảng):** thiết kế đã chốt — giữ khung nhà + va chạm, làm lại
+hình ảnh thành điện tuyên dương (bỏ khám thờ, nến, bình sen, hạc–rùa, đỉnh đồng; thêm khung ảnh mạ vàng, bảng lĩnh vực,
+băng rôn, Bảng Vàng giữa điện, mái 2 tầng); quỳ → lạy đủ 3 lạy → **Q = bóc quẻ** → lá quẻ lời khuyên đúng lĩnh vực.
+Ảnh 1→6 = Công Danh, Tình Duyên, Tài Lộc, Sức Khỏe, Gia Đạo, Vận Hạn (`client/src/content/fortunes/domains.ts`).
+Dữ liệu quẻ: `client/src/content/fortunes/*.ts` (48 lá/lĩnh vực, kiểu `FortuneSlip`), rút không lặp bằng `drawSlip()` ở
+`index.ts`. Phần bóc quẻ trong `client/src/activities/gallery/index.ts` + CSS do orchestrator tự làm (✅ xong, typecheck
+sạch). Nhãn trong `shared/` đổi sang "đảnh lễ Sư Thầy / kệ ống quẻ / Bảng Vàng" (chỉ chú thích + nhãn trạm, va chạm giữ nguyên).
+
+- Lần 1 (session `d8f7f5e5`, run `wf_f80b4a0a-f81`): phiên bị ngắt ngay sau khi chạy — **không agent nào làm được gì**
+  (6 file quẻ vẫn là mảng rỗng, `tangDoan.ts` chưa đổi, không có journal).
+- Lần 2 (session `33d59b2c`, 2026-10-31 14:3x, run `wf_01eb2acc-a1f`, script
+  `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\33d59b2c-acee-4593-9886-4bcf05bde474\workflows\scripts\tang-doan-honor-hall-wf_01eb2acc-a1f.js`):
+  cùng 8 agent (3 viết quẻ, 2 lĩnh vực/agent + 3 phản biện; 1 dựng điện + 1 phản biện), **tối đa 3 agent cùng lúc**.
+  Có công cụ kiểm quẻ tự động (số lá, phân bố chủ đề/mức, nhịp 6/8, vần, bằng trắc, trùng lặp) ở scratchpad của session:
+  `...\Temp\claude\D--FastDo-fastdo-server\33d59b2c-...\scratchpad\check-fortunes.mts` — chạy
+  `npx tsx "<đường dẫn>" [cong_danh ...]` từ `D:\AI\Tu Online`. Phiên sau nếu cần làm lại: kiểm file nào còn rỗng
+  (`grep -c "level:" client/src/content/fortunes/*.ts`) và `git diff --stat client/src/art/temple/` rồi chỉ chạy phần thiếu.
+- Lúc bắt đầu lần 2, server game cổng 3000 **không chạy** (tsx watch cũ còn sống nhưng không bật lại server sau lần sửa
+  `shared/` lúc 14:13) → đã bật `npm run dev:server` riêng (Vite cũ ở :5173 vẫn dùng tiếp).
+- Kết quả lần 2 (đọc từ journal `...\33d59b2c-...\subagents\workflows\wf_01eb2acc-a1f\journal.jsonl`): **xong** dựng điện +
+  phản biện (sửa khe hở 1 cm quanh điện ở y 4,5 m, bệ kệ ống quẻ chìm dưới sàn), **xong** Công Danh 49 / Tình Duyên 48 /
+  Tài Lộc 49 / Sức Khỏe 49 lá + phản biện (0 lỗi). Bị ngắt khi đang viết Gia Đạo (dừng ở 16 lá) và Vận Hạn (14 lá).
+- Lần 3 (session `746ab505`, 2026-10-31 tối, run `wf_93088305-607`, script
+  `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\746ab505-5bf8-4600-8184-ab7d5f667810\workflows\scripts\tang-doan-finish-fortunes-wf_93088305-607.js`):
+  chỉ chạy phần thiếu — viết nốt Gia Đạo + Vận Hạn (mỗi lĩnh vực 1 agent viết + 1 agent phản biện) và 1 agent soi code
+  bóc quẻ (chỉ báo cáo, orchestrator tự sửa). Công cụ kiểm quẻ đã chép sang
+  `C:\Users\LENOVO\AppData\Local\Temp\claude\D--FastDo-fastdo-server\746ab505-5bf8-4600-8184-ab7d5f667810\scratchpad\check-fortunes.mts`
+  (chạy không tham số = cả 6 lĩnh vực + bắt trùng chéo). Nếu lần này cũng bị ngắt: đếm lá như trên, chỉ viết tiếp chủ đề
+  còn thiếu (mỗi khối chủ đề mở bằng `// ── Tên chủ đề ──`).
+- **Server dev hay kẹt khi tự khởi động lại:** sửa file trong `server/` lúc 15:45 làm cả 2 tiến trình `tsx watch` cũ
+  (của `npm run dev` 11:40 và của `npm run dev:server` 14:33) báo "Rerunning..." rồi **không bật lại server** (cổng 3000
+  chết, trình duyệt báo "Không kết nối được máy chủ"); bản 11:40 đã kẹt như vậy từ 14:13. Code không lỗi (chạy thử cổng
+  3997 lên bình thường). Đã bật thêm `npm run dev:server` nền lúc 15:5x (session `746ab505`). Nếu cổng 3000 lại chết: bật
+  một `npm run dev:server` mới (không kill process lạ), hoặc user tắt hết rồi chạy lại `npm run dev`.
 
 Ảnh mẫu tượng Phật: tượng đá xanh xám ngồi thiền trên bệ sen (ảnh pngtree user gửi trong chat — **không** lưu vào dự án
 vì là ảnh có bản quyền; muốn so lại thì xin user gửi lại ảnh).
@@ -47,6 +104,9 @@ vì là ảnh có bản quyền; muốn so lại thì xin user gửi lại ảnh
 | 15 | Typecheck + test + build cuối | ✅ `npm run typecheck` sạch; `npm test` 15 file / **164 test pass**; `npm run build` OK (mp3 ra `dist/client/assets/nhac-phat-tinh-tam-*.mp3`); server production thử ở cổng 3999 trả mp3 `206 Partial Content` + `Accept-Ranges: bytes` + `audio/mpeg` | — |
 | 16 | **Lạy Phật khi đang ngồi nghe kinh** (yêu cầu thêm chiều 31/10) | ✅ Đang ngồi bồ đoàn: **Space = lạy** — hoạt ảnh `prostrate` sẵn có của Điện Tăng Đoàn (quỳ lên, chắp tay cúi rạp về phía tượng, `PORTRAIT_BOW.bowMs` = 1,8 s) rồi tự về `sit`; camera góc thứ nhất cúi theo (mắt 0,85 → 0,45 m, nhìn từ mặt tượng xuống sàn rồi ngẩng lại); chuông gia trì khẽ mỗi lạy; bấm Space lúc đang lạy bị bỏ qua; E giữa lúc lạy vẫn đứng dậy bình thường. Hoạt ảnh đi theo tư thế đồng bộ qua mạng (server nhận mọi `AnimId`) nên cả phòng thấy — **chỉ sửa client, không thưởng** (giữ hợp đồng "chỉ ngồi nghe"). HUD: "Space: lạy Phật · E / Esc: đứng dậy". Đã thử trong game | `client/src/activities/sutra/index.ts` |
 | 17 | **Bầu trời bớt chói** | ✅ Nguyên nhân (đo trong game): nhìn về phía mặt trời, cả vùng trời rộng quanh mặt trời (quầng Mie + mây sáng, không chỉ đĩa) vượt ngưỡng bloom 1,6 của Chùa → bloom tràn thành màn trắng phủ kín hình. Sửa trong `tuneSky`: nén mềm chỗ sáng của bầu trời **thấy được** (`SKY_LIMIT`: từ 0,9 nén về trần 1,35 < ngưỡng bloom; riêng đĩa mặt trời trần 6 để còn quầng nhỏ). Bản chụp IBL không nén (ánh sáng cảnh giữ nguyên); thông số khí quyển giữ nguyên. Đã so: quay lưng mặt trời thì trời y hệt trước; nhìn mặt trời thì trời xanh + đĩa trắng có quầng mềm | `client/src/art/temple/index.ts` |
+| 18 | **Điện Tăng Đoàn thành điện vinh danh** (yêu cầu chiều 31/10) | ✅ Agent dựng + agent phản biện (lần 2): bỏ khám thờ, nến, bình sen, hạc–rùa, đỉnh đồng, tượng; thêm khung ảnh mạ vàng + bảng lĩnh vực + khẩu hiệu + 2 băng rôn mỗi ảnh, kệ ống quẻ trên `shrine_table`, bệ 3 cấp + Bảng Vàng "Tăng Đoàn Tu Online · Vinh danh chư Tăng" (6 lĩnh vực 2 cột), 2 trụ đèn sen trên vòng `crane`, cột son rồng vàng, trần ô sen, đèn lồng, phướn, mái 2 tầng có rồng, biển "Điện Tăng Đoàn", câu đối. 3 PointLight (24/21/12 cd). `PORTRAIT_CENTER_Y` 1,8, `PORTRAIT_HEIGHT` 1,0. Phản biện sửa: khe hở 1 cm quanh điện ở y 4,5 m, bệ kệ chìm dưới sàn. **Đã thử trong game** ở góc quỳ thật (FOV 60): thấy trọn bảng lĩnh vực + khẩu hiệu + ảnh + băng rôn | `client/src/art/temple/tangDoan.ts`, `tangDoanDecor.ts` (mới), `client/src/content/gallery.ts` |
+| 19 | **Lời khuyên 6 lĩnh vực** | ✅ 291 lá: Công Danh 49, Tình Duyên 48, Tài Lộc 49, Sức Khỏe 49, Gia Đạo 48, Vận Hạn 48 — mỗi lĩnh vực chia đều chủ đề theo danh sách user gửi, mức quẻ ~7/15/12/7/7, thơ lục bát 6/8 đúng vần + thanh bằng. Mỗi lĩnh vực 1 agent viết + 1 agent phản biện (sửa: lá sức khỏe hứa khỏi bệnh, lá "Đại Cát" mặc định ai cũng sắp có con, luật dân gian tự bịa, ý trùng giữa lĩnh vực…). Công cụ kiểm (không tham số): **0 lỗi, 0 cảnh báo** | `client/src/content/fortunes/*.ts` |
+| 20 | **Bóc quẻ trong game + sửa sau phản biện** | ✅ Agent soi code (chỉ báo cáo, 6 điểm) + thử trong game cả 6 ảnh (mỗi ảnh ra đúng lĩnh vực). Đã sửa: lễ chưa bóc thì **dồn lá** (tối đa 3, HUD "còn N lá"); lễ vừa thành thì bỏ dòng nhắc tạm để hiện "bấm Q" ngay; **ẩn HUD quỳ khi đang mở lá quẻ** (1280×720 hai thứ chạm nhau); HUD có nền tối mờ (trước đó chữ đè lên bảng tên vàng, khó đọc); màn thấp (≤ 640 / ≤ 520 px) thu lá quẻ 0,86 / 0,7; bỏ Enter khỏi phím cất quẻ (Enter luôn mở chat); chữ "xin lời khuyên **về** Công Danh"; bỏ chữ "khám thờ / quỳ lạy" ở chú thích server + 2 toast server ("Có người đang đảnh lễ…", "Công Đức … để lần sau, quẻ thì con cứ bóc nhé") | `client/src/activities/gallery/index.ts`, `activities.css`, `server/src/activities/gallery/index.ts` |
 
 **Phiên 2026-10-31 chiều** (session `d8f7f5e5`): lần chạy tiếp lúc trưa lại bị ngắt vì **giới hạn tuần** ("weekly limit ·
 resets 6pm") lúc 12:08 — journal cho thấy `build:audio` xong, `build:yard` hỏng sau khi ghi file, `build:hall` dừng giữa
@@ -72,6 +132,15 @@ còn 3 agent build (audio, hall, yard) + 2 agent review. Dev server được b�
 - Đèn trong điện mạnh hơn hẳn Tăng Đoàn (55/40/45 cd so với 6/4,5) — ảnh chụp chưa cháy sáng, nên xem lại khi chơi thật.
 - Chưa thử: Safari (chính sách tự phát), nhiều người cùng nghe một lúc (vị trí đều tính từ giờ server nên về lý thuyết khớp).
 - Tượng Phật còn chỉnh được tai, mắt, cánh mũi, chuyển tiếp cổ–ngực (xem "Ghi chú").
+- **Điện Tăng Đoàn** (chờ user quyết):
+  - 6 `caption` trong `client/src/content/gallery.ts` đang rỗng → bảng tên, HUD và chữ ký lá quẻ đều chỉ ghi "Sư Thầy".
+    Điền pháp danh/biệt danh từng người thì hiện "Sư Thầy <tên>".
+  - Ai giữ lĩnh vực nào (ảnh 1→6 = Công Danh, Tình Duyên, Tài Lộc, Sức Khỏe, Gia Đạo, Vận Hạn) lấy theo thứ tự danh sách
+    user gửi — đổi trong `client/src/content/fortunes/domains.ts` (bảng và lá quẻ tự theo).
+  - Chưa đo số tam giác của điện (ước ~90k, tĩnh đã gộp chung cả chùa nên không tách được); trình duyệt trong app chỉ
+    1–2 khung hình/giây nên chưa đánh giá được độ mượt thật.
+  - Mỹ thuật nhỏ (phản biện để lại): 2 đèn chùm sen che một phần nóc điện khi nhìn từ cửa; chữ dài trên băng rôn
+    (vd "Nghiệp", "Đường") bị ép hẹp; đỉnh bánh xe pháp trên bảng lĩnh vực bị dải đen trên cắt khi quỳ.
 
 ## Chạy dự án / kiểm lại
 

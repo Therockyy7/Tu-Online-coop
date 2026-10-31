@@ -1,0 +1,358 @@
+// Lá quẻ Gia Đạo & Con Cái — lời khuyên của vị Sư Thầy ở chân dung portrait_5, Điện Tăng Đoàn.
+// 48 lá, 6 chủ đề × 8 lá: Hòa khí gia đình, Cha mẹ & con cái, Anh chị em, Đón con, Nuôi dạy con, Con cái hiếu thuận.
+// Giọng Sư Thầy hiền hậu, hơi hóm, xưng “con” với khách: việc nhà cụ thể xen chút đạo lý (nhân quả, nhẫn nhịn, biết
+// ơn) và chút màu dân gian (xem tuổi, hợp mệnh — nghe cho vui). Chuyện con cái nói tế nhị: không thúc ép, không trọng
+// con trai hay con gái, việc y khoa hỏi bác sĩ, con nuôi hay chọn không con đều đáng trân trọng; dạy con không đòn roi.
+// Mức Trung Bình chỉ là lời nhắc giữ hòa khí, không phải quẻ xấu.
+import type { FortuneSlip } from './domains';
+
+/** Lá quẻ Gia Đạo & Con Cái (6 chủ đề × 8 lá). */
+export const GIA_DAO: readonly FortuneSlip[] = [
+  // ── Hòa khí gia đình ──
+  {
+    level: 'Đại Cát',
+    topic: 'Hòa khí gia đình',
+    title: 'Mâm cơm đủ mặt quây quần',
+    verse: ['Mâm cơm đủ mặt chiều nay', 'Ông bà con cháu chung tay một nhà'],
+    advice: 'Nhà con đang vào vận hòa thuận, người thương nhau còn đông đủ. Mỗi tuần giữ ít nhất một bữa cơm cả nhà ngồi chung, cất điện thoại sang một bên. Phúc nhà không nằm ở mâm cao cỗ đầy mà ở câu chuyện quanh mâm.',
+  },
+  {
+    level: 'Đại Cát',
+    topic: 'Hòa khí gia đình',
+    title: 'Hiên nhà rộn tiếng cười',
+    verse: ['Một nhà hòa thuận yên vui', 'Đắng cay cùng chịu ngọt bùi cùng chia'],
+    advice: 'Quẻ này báo gia đạo hanh thông, việc lớn việc nhỏ trong nhà đều có người góp sức. Lúc thuận lợi càng nên chia việc cho công bằng: người nấu thì người rửa, người dọn thì người khen. Nhớ nói lời cảm ơn với người nhà như nói với khách, phúc sẽ còn dày thêm.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Hòa khí gia đình',
+    title: 'Giọng mềm như lụa',
+    verse: ['Lời hay ấm tựa nắng mai', 'Nói lời nhẹ nhõm thì ai cũng mừng'],
+    advice: 'Không khí trong nhà đang êm, chỉ cần giữ giọng nói mềm là mọi việc trôi chảy. Khi bực, hãy đợi mười hơi thở rồi mới nói, và nói về việc chứ đừng nói về người. Một câu “mình hiểu rồi” đôi khi gỡ được cả buổi giận.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Hòa khí gia đình',
+    title: 'Ấm trà nóng giữa nhà',
+    verse: ['Chiều chiều nhóm bếp đun trà', 'Quây quần kể chuyện ngày qua rộn ràng'],
+    advice: 'Phúc khí nhà con nằm ở những thói quen nhỏ. Lập một “giờ chung” mỗi tối, mười lăm phút thôi, để ai cũng kể một chuyện vui trong ngày. Người nhỏ nhất được kể trước, người lớn tập lắng nghe mà không chen ngang.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Hòa khí gia đình',
+    title: 'Khoảng trời riêng sau rèm',
+    verse: ['Thương nhau chừa chút khoảng trời', 'Mỗi người một góc thảnh thơi vẫn gần'],
+    advice: 'Gia đạo bình ổn, chỉ đôi lúc hơi chật chội vì ai cũng muốn người kia theo ý mình. Hãy tôn trọng giờ nghỉ, góc riêng và đồ riêng của mỗi người, kể cả của trẻ nhỏ. Gần quá thì dễ va, chừa khoảng thở thì thương lâu.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Hòa khí gia đình',
+    title: 'Chiếc bàn tròn họp nhà',
+    verse: ['Chi tiêu bàn bạc rõ ràng', 'Của chung minh bạch nhẹ nhàng tình thân'],
+    advice: 'Nhà yên hay không nhiều khi nằm ở chuyện tiền bạc có được nói rõ hay không. Mỗi tháng ngồi lại mười phút xem khoản chung, khoản riêng, khoản biếu cha mẹ và khoản để dành. Khoản chi nào lớn hơn vài tháng lương thì cả nhà cùng bàn rồi mới quyết.',
+  },
+  {
+    level: 'Tiểu Cát',
+    topic: 'Hòa khí gia đình',
+    title: 'Bát cháo hành làm lành',
+    verse: ['Giận nhau chớ để qua đêm', 'Một câu xin lỗi ấm êm cả nhà'],
+    advice: 'Có một chuyện cũ vẫn còn lấn cấn giữa con và người nhà. Đừng đợi người kia mở lời, con cứ nói trước một câu xin lỗi ngắn gọn, không kèm chữ “nhưng”. Buông được cái tôi một chút thì cả nhà nhẹ cả tháng.',
+  },
+  {
+    level: 'Trung Bình',
+    topic: 'Hòa khí gia đình',
+    title: 'Mây mỏng che ngang thềm',
+    verse: ['Mệt nhoài để ở ngoài sân', 'Bước vào nhà cửa ân cần nói năng'],
+    advice: 'Dạo này áp lực bên ngoài dễ theo con về tận bữa cơm. Trước khi vào nhà, đứng lại đầu ngõ hít thở vài nhịp cho lắng. Thấy mình sắp gắt thì nói thẳng “mình đang mệt, để lát nữa nói nhé”, tránh buông lời nặng làm tổn thương người thân.',
+  },
+
+  // ── Cha mẹ & con cái ──
+  {
+    level: 'Đại Cát',
+    topic: 'Cha mẹ & con cái',
+    title: 'Bóng đa đầu làng',
+    verse: ['Mẹ cha như bóng cây đa', 'Đi xa mấy dặm vẫn là chốn về'],
+    advice: 'Cha mẹ và con đang có duyên gần gũi hiếm có, lời nói ra dễ được hiểu đúng. Đây là lúc tốt để rủ cha mẹ đi một chuyến xa, chụp vài tấm ảnh cả nhà, hoặc ghi âm cha mẹ kể chuyện ngày xưa. Những món quà như vậy càng để lâu càng quý.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Cha mẹ & con cái',
+    title: 'Đèn khuya chờ tiếng gọi',
+    verse: ['Gọi về một tiếng hỏi han', 'Mẹ cha nghe được muôn vàn niềm vui'],
+    advice: 'Điều cha mẹ mong không phải thành tích của con, mà là được nghe giọng con đều đặn. Đặt lịch nhắc một cuộc gọi cố định mỗi tuần, hỏi chuyện ăn ngủ, chuyện hàng xóm, chuyện cây trong vườn. Nghe nhiều hơn nói, và đừng lôi chuyện cũ ra tranh luận qua điện thoại.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Cha mẹ & con cái',
+    title: 'Ghế đẩu nhỏ bên con',
+    verse: ['Lắng nghe con trẻ nói gì', 'Thương con trước phải biết khi con buồn'],
+    advice: 'Con trẻ đang mở lòng với cha mẹ, đừng để lỡ dịp này. Mỗi ngày dành mười phút chỉ để nghe, không sửa lỗi, không lên lớp, không nhìn điện thoại. Khi con kể chuyện buồn, hỏi “con muốn bố mẹ giúp hay chỉ muốn được nghe?” rồi làm đúng như vậy.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Cha mẹ & con cái',
+    title: 'Lá non lá già một cành',
+    verse: ['Mỗi thời một nếp một lề', 'Hiểu rồi thì chẳng ngại kề vai nhau'],
+    advice: 'Hai thế hệ nhìn đời bằng hai lăng kính khác nhau, điều đó rất bình thường. Khi bất đồng, hãy nói “con hiểu ý bố mẹ, con xin trình bày thêm” thay vì cãi ngang. Chuyện nhỏ thì chiều cha mẹ cho vui, chuyện lớn của đời mình thì từ tốn giải thích cho đến khi cả nhà an tâm.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Cha mẹ & con cái',
+    title: 'Mái tóc pha sương',
+    verse: ['Tóc cha đã điểm sợi sương', 'Đưa cha đi khám là thương thật lòng'],
+    advice: 'Đấng sinh thành thường ngại làm phiền con nên hay giấu chuyện đau ốm. Con chủ động đặt lịch khám định kỳ cho cha mẹ, đi cùng và ghi lại lời dặn của bác sĩ. Thăm hỏi bằng việc làm cụ thể quý hơn trăm lời dặn “nhớ giữ sức khỏe”.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Cha mẹ & con cái',
+    title: 'Chim non tập vỗ cánh',
+    verse: ['Chim non tập cánh bay cao', 'Đừng so con với nhà nào khác đâu'],
+    advice: 'Tuổi này con trẻ muốn tự quyết nhiều hơn, cha mẹ cứ coi đó là dấu hiệu lớn khôn. Giao cho con vài việc được tự chọn, như chọn đồ, chọn môn năng khiếu, sắp lịch học, rồi chấp nhận cả kết quả chưa hoàn hảo. Đừng so sánh con với “con nhà người ta”, vì câu đó làm nguội lòng con nhanh nhất.',
+  },
+  {
+    level: 'Tiểu Cát',
+    topic: 'Cha mẹ & con cái',
+    title: 'Bàn tay dắt bàn tay',
+    verse: ['Ngày xưa mẹ dắt con đi', 'Bây giờ con dắt mẹ khi tuổi già'],
+    advice: 'Việc nhỏ mà ý nghĩa lúc này: chỉ cha mẹ cách gọi video, cách nhận ra tin nhắn lừa đảo, cách đặt báo thức nhắc giờ uống thuốc. Kiên nhẫn chỉ lại lần thứ năm như ngày xưa cha mẹ dạy con cầm đũa. Một buổi chiều như vậy ấm lòng cha mẹ cả mùa.',
+  },
+  {
+    level: 'Trung Bình',
+    topic: 'Cha mẹ & con cái',
+    title: 'Gió chướng đầu mùa',
+    verse: ['Mẹ cha đôi lúc nóng lòng', 'Con nên bình tĩnh nói trong ôn hòa'],
+    advice: 'Thời gian này cha mẹ dễ lo xa và hay nhắc chuyện của con. Đừng vội phản ứng, cứ nghe hết rồi đáp ngắn gọn, nhẹ nhàng; giữ ranh giới bằng sự lễ phép chứ không bằng im lặng giận dỗi. Nếu chuyện cũ còn đau, tìm lúc cả hai bình tâm để nói, hoặc nhờ một người lớn trong họ mà cả nhà tin cậy làm cầu nối.',
+  },
+
+  // ── Anh chị em ──
+  {
+    level: 'Đại Cát',
+    topic: 'Anh chị em',
+    title: 'Bó đũa chẳng ai bẻ gãy',
+    verse: ['Anh em như bó đũa tre', 'Buộc chung một mối chở che lẫn nhau'],
+    advice: 'Anh chị em nhà con đang đồng lòng hiếm thấy, việc lớn trong nhà chỉ cần bàn một buổi là xong. Nhân lúc thuận hòa, cả nhà lập một quỹ chung nho nhỏ để lo việc cha mẹ, giỗ chạp, ai góp được bao nhiêu thì góp và ghi chép rõ ràng. Một chiếc đũa thì dễ gãy, cả bó buộc lại thì chẳng ai bẻ nổi.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Anh chị em',
+    title: 'Múi cam chung một vỏ',
+    verse: ['Mỗi người một ngả đường xa', 'Tết về vẫn một mái nhà sum vầy'],
+    advice: 'Xa nhau về đường đi nhưng không xa về lòng, anh chị em như những múi cam vẫn chung một lớp vỏ. Lập một nhóm nhắn tin chung, mỗi tuần gửi một tấm ảnh hay một câu hỏi thăm, chẳng cần dài dòng. Hẹn nhau một dịp cố định trong năm, như Tết hay ngày giỗ ông bà, để ai ở xa cũng có hẹn mà về.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Anh chị em',
+    title: 'Ngọn đuốc chuyền qua tay em',
+    verse: ['Anh đi trước thắp đèn soi', 'Em sau vững dạ mà noi gương lành'],
+    advice: 'Người đi trước trong nhà đang có duyên làm chỗ dựa cho em út. Giúp em bằng cách chỉ đường, giới thiệu chỗ học, chỗ làm, hơn là gánh thay mọi việc. Giúp xong thì quên đi, đừng nhắc công, tình anh em mới không thành món nợ.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Anh chị em',
+    title: 'Hộp ảnh cũ dưới gầm giường',
+    verse: ['Ngày xưa chung một mái tranh', 'Lớn rồi gặp lại vẫn dành phần nhau'],
+    advice: 'Lâu rồi anh chị em chưa ngồi lại với nhau cho ra một buổi. Lôi hộp ảnh cũ ra xem cùng nhau, kể lại chuyện trèo cây hái ổi, chuyện giành nhau cái đùi gà, tiếng cười sẽ tự về. Tình ruột thịt như giếng nước, lâu không múc vẫn còn đầy, chỉ cần thả gàu xuống.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Anh chị em',
+    title: 'Sợi lạt chia bánh chưng',
+    verse: ['Mẹ cha tuổi đã xế chiều', 'Anh em chia việc ít nhiều chớ so'],
+    advice: 'Cha mẹ đã lớn tuổi, việc chăm sóc nên được chia rõ giữa các anh chị em. Ngồi lại lập một bảng: ai đưa đi khám, ai lo thuốc men theo đơn bác sĩ, ai về thăm cuối tuần, ai ở xa thì góp tiền nhiều hơn. Người làm nhiều được cảm ơn, người làm ít không bị trách, miễn ai cũng có phần như những miếng bánh chưng chia đều bằng sợi lạt.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Anh chị em',
+    title: 'Hai đôi dép nhỏ trước hiên',
+    verse: ['Hai con hai nết khác nhau', 'Đứa nào cũng có một màu đáng yêu'],
+    advice: 'Các con nhỏ trong nhà đang tuổi hay tranh nhau, giành đồ chơi, giành phần hơn. Đừng phân xử bằng câu “anh lớn phải nhường em”, hãy dạy cả hai cách thay phiên và nói ra điều mình muốn. Mỗi tuần dành cho từng đứa một chút thời gian riêng với cha mẹ, để đứa nào cũng thấy mình được thương.',
+  },
+  {
+    level: 'Tiểu Cát',
+    topic: 'Anh chị em',
+    title: 'Lớp băng mỏng đầu xuân',
+    verse: ['Lời qua tiếng lại hôm nào', 'Một lời hỏi trước ngọt ngào lại thân'],
+    advice: 'Giữa con và một người anh chị em đang có khoảng lặng vì một câu nói cũ. Con thử gọi trước, hỏi thăm một chuyện nhỏ, không cần nhắc lại ai đúng ai sai. Người mở lời trước không phải người thua, mà là người giữ được tình nhà, như nắng xuân làm tan lớp băng mỏng.',
+  },
+  {
+    level: 'Trung Bình',
+    topic: 'Anh chị em',
+    title: 'Cây khế đầu hồi',
+    verse: ['Anh em tiền bạc phân minh', 'Có vay có giấy giữ tình về sau'],
+    advice: 'Chuyện tiền bạc, đất đai giữa anh chị em đang cần được nói cho rõ. Cho vay thì chỉ cho trong sức mình, lỡ mất cũng không oán, và có giấy ghi lại dù là ruột thịt; việc chia tài sản thì theo di chúc và pháp luật, có người làm chứng. Nhớ chuyện cây khế ngày xưa, tham thì mất cả tình lẫn của, rõ ràng từ đầu mới giữ được nhau.',
+  },
+
+  // ── Đón con ──
+  {
+    level: 'Đại Cát',
+    topic: 'Đón con',
+    title: 'Cánh võng đưa kẽo kẹt',
+    verse: ['Võng đưa kẽo kẹt ru hời', 'Tin vui như nắng giữa trời đầu xuân'],
+    advice: 'Nếu nhà con đang mong em bé thì duyên con cái đã tới gần, tin vui có thể đến sớm hơn con nghĩ. Hai vợ chồng nên cùng đi khám sức khỏe trước khi mang thai, nghe bác sĩ dặn về ăn uống, thuốc bổ và lịch khám. Chuẩn bị chỗ ở, tài chính và cả tinh thần cho thong thả, em bé đến lúc nào cũng là đúng lúc.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Đón con',
+    title: 'Chim sẻ tha rơm lót tổ',
+    verse: ['Rơm khô lót tổ cho êm', 'Vững vàng sức khỏe rồi thêm người nhà'],
+    advice: 'Thời điểm đón con đẹp nhất là khi cả hai vợ chồng cùng sẵn lòng, sức khỏe ổn và công việc đủ vững để thay phiên chăm bé. Ngồi lại tính chi phí năm đầu như khám thai, sinh nở, sữa tã, người trông, rồi để dành trước một khoản. Dân gian hay chọn năm hợp tuổi cho vui, nhưng sự sẵn sàng của cha mẹ mới là ngày lành thật.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Đón con',
+    title: 'Cành bưởi trĩu quả vừa tay',
+    verse: ['Ít con hay lắm đàn con', 'Thương đều chăm đủ vẫn tròn niềm vui'],
+    advice: 'Sinh mấy con là chuyện riêng của hai vợ chồng, không phải của họ hàng hay hàng xóm. Hãy tính theo sức khỏe người mẹ, thời gian, tiền bạc và mong muốn thật của cả hai, rồi hỏi bác sĩ về khoảng cách hợp lý giữa các lần sinh. Con trai hay con gái đều là lộc, một con hay nhiều con đều trọn phúc khi được thương đủ.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Đón con',
+    title: 'Mái nhà che thêm một người',
+    verse: ['Duyên con muôn ngả muôn đường', 'Nuôi con bằng cả tình thương trọn đời'],
+    advice: 'Đường đón con có nhiều lối, sinh con hay nhận con nuôi đều là duyên lành như nhau. Nếu hai vợ chồng nghĩ tới việc nhận con nuôi, hãy tìm hiểu thủ tục qua cơ quan có thẩm quyền, chuẩn bị lòng mình và cả họ hàng để đón bé bằng trọn tình thương. Đứa trẻ nào được yêu thương cũng là phúc của mái nhà ấy.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Đón con',
+    title: 'Bầu trời riêng của hai người',
+    verse: ['Hai người một mái nhà xinh', 'Có con hay chẳng vẫn tình đong đầy'],
+    advice: 'Có con hay không, có vào lúc nào, là lựa chọn của hai vợ chồng, và lựa chọn nào cũng đáng được tôn trọng. Nếu hai người chưa muốn hoặc chọn không sinh con, hãy nói thật với nhau trước, rồi thưa với cha mẹ bằng lời mềm mỏng. Hạnh phúc của một nhà không đo bằng số người trong tấm ảnh gia đình.',
+  },
+  {
+    level: 'Tiểu Cát',
+    topic: 'Đón con',
+    title: 'Đèn ông sao chờ bé',
+    verse: ['Con chưa về với mẹ cha', 'Vợ chồng thương lấy nhau qua tháng ngày'],
+    advice: 'Chờ đợi không có nghĩa là thiếu phúc, duyên con đến sớm hay muộn đều có lúc của nó. Trong lúc chờ, hai vợ chồng giữ nếp sống lành, ngủ đủ, bớt áp lực, và đừng bao giờ đổ lỗi cho nhau. Nếu đã mong con khá lâu, cùng nhau đi khám sớm cũng là một cách thương nhau, còn lại cứ sống trọn từng ngày như đang chờ một mùa trăng đẹp.',
+  },
+  {
+    level: 'Tiểu Cát',
+    topic: 'Đón con',
+    title: 'Chuyện trà dư tửu hậu',
+    verse: ['Người ngoài hỏi mãi bao giờ', 'Cười trừ một tiếng cứ chờ duyên sang'],
+    advice: 'Lời hỏi han “bao giờ có em bé” của họ hàng dạo này làm con nặng lòng. Hai vợ chồng nên thống nhất một câu trả lời nhẹ nhàng, như “dạ, tụi con có kế hoạch rồi ạ”, rồi khéo léo chuyển sang chuyện khác. Chuyện con cái là của riêng hai người, không cần giải thích với ai, và cũng đừng mang lời người ngoài về trách nhau.',
+  },
+  {
+    level: 'Trung Bình',
+    topic: 'Đón con',
+    title: 'Hỏi đường người đi trước',
+    verse: ['Mong con lòng dạ bồn chồn', 'Nhờ tay bác sĩ ôn tồn đợi tin'],
+    advice: 'Mong con lâu ngày dễ sinh sốt ruột, đây là lúc cần thêm kiên nhẫn và sự giúp sức của y khoa. Hai vợ chồng nên cùng khám ở nơi có chuyên khoa hiếm muộn, làm theo hướng điều trị của bác sĩ, đừng tự dùng bài thuốc truyền miệng hay tin lời quảng cáo thần kỳ. Giữ lòng an, thương nhau và không trách nhau, đó là chỗ dựa tốt nhất cho cả hai trên đường chờ đợi.',
+  },
+
+  // ── Nuôi dạy con ──
+  {
+    level: 'Đại Cát',
+    topic: 'Nuôi dạy con',
+    title: 'Giá sách nhỏ đầu giường',
+    verse: ['Mỗi đêm sách nhỏ bên giường', 'Trang hay nuôi trí mở đường ước mơ'],
+    advice: 'Mùa ham học của con trẻ nhà con đang tới, hỏi gì cũng muốn biết tận gốc. Mỗi tối dành hai mươi phút đọc sách cùng con, để con tự chọn sách và kể lại theo ý mình. Khen con vì chịu khó tìm tòi chứ đừng chỉ khen điểm số, mầm tò mò hôm nay sẽ thành cây lớn.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Nuôi dạy con',
+    title: 'Chiếc chổi nhỏ trong tay bé',
+    verse: ['Tay non tập quét hiên nhà', 'Bé con góp sức cũng là một tay'],
+    advice: 'Đây là lúc tốt để giao cho trẻ những việc vừa sức như tự cất đồ chơi, dọn bát của mình, tưới cây, gấp quần áo. Làm chậm, làm chưa khéo cũng đừng làm thay, cứ hướng dẫn rồi cảm ơn con như cảm ơn một thành viên trong nhà. Đứa trẻ biết góp sức hôm nay sẽ thành người biết lo cho người khác mai sau.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Nuôi dạy con',
+    title: 'Dấu chân lớn dấu chân nhỏ',
+    verse: ['Con nhìn cha mẹ mà theo', 'Làm gương một chút hơn gieo vạn lời'],
+    advice: 'Trẻ nhỏ học cha mẹ bằng mắt nhiều hơn bằng tai. Muốn con bớt dán mắt vào màn hình thì cha mẹ cất điện thoại trong bữa cơm trước; muốn con lễ phép thì cha mẹ nói “cảm ơn”, “xin lỗi” với nhau trước. Nhân nào quả nấy, cha mẹ gieo nếp tốt thì con gặt thói quen tốt.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Nuôi dạy con',
+    title: 'Mỗi cây một dáng vươn',
+    verse: ['Cây cao cây thấp trong vườn', 'Cây nào cũng biết tự vươn đón trời'],
+    advice: 'Mỗi đứa trẻ có một thiên hướng riêng, đứa mê vẽ, đứa mê đá bóng, đứa thích tháo lắp đồ đạc. Cha mẹ cho con thử nhiều môn, quan sát xem mắt con sáng lên ở đâu rồi vun vào đó, đừng bắt con sống thay giấc mơ dang dở của mình. Học thêm vừa đủ thôi, chừa thời gian cho con chơi và nghỉ.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Nuôi dạy con',
+    title: 'Bàn tay ấm thay roi mây',
+    verse: ['Dạy con lời nhẹ mà nghiêm', 'Không roi không quát giữ niềm yêu thương'],
+    advice: 'Lúc con trẻ bướng bỉnh cũng là lúc cha mẹ được thử lòng kiên nhẫn. Đặt ra ít luật nhưng rõ ràng, nói trước hậu quả hợp lý như “ném đồ chơi thì đồ chơi được cất một hôm”, rồi giữ lời một cách bình tĩnh. Đang giận thì đừng dạy, đợi cả hai lắng xuống rồi ôm con và nói chuyện.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Nuôi dạy con',
+    title: 'Ngọn hải đăng ngoài khơi',
+    verse: ['Con vào tuổi mới lớn khôn', 'Mẹ cha làm bạn chẳng dồn ép con'],
+    advice: 'Tuổi mới lớn muốn có thế giới riêng, cửa phòng đóng nhiều hơn, chuyện kể ít hơn. Hãy gõ cửa trước khi vào, tôn trọng bạn bè của con, và cùng con thỏa thuận giờ dùng mạng cũng như những điều không nên chia sẻ trên mạng. Nói rõ với con rằng gặp chuyện gì cũng có thể về kể với cha mẹ, cha mẹ sẽ nghe trước rồi mới bàn cách giúp.',
+  },
+  {
+    level: 'Tiểu Cát',
+    topic: 'Nuôi dạy con',
+    title: 'Đôi chân trần trên bãi cỏ',
+    verse: ['Ra sân chạy nhảy chân trần', 'Bớt màn hình sáng thêm phần ngủ ngon'],
+    advice: 'Màn hình dạo này đang lấn mất giờ chạy nhảy của trẻ nhà con. Mỗi ngày cho con ra ngoài trời vận động khoảng một tiếng, tắt thiết bị trước giờ ngủ và giữ giờ ngủ đều đặn. Cha mẹ cùng chơi với con một trò ngày xưa như nhảy dây, đá cầu, vừa khỏe người vừa gần nhau.',
+  },
+  {
+    level: 'Trung Bình',
+    topic: 'Nuôi dạy con',
+    title: 'Hai la bàn chỉ hai hướng',
+    verse: ['Mẹ cha dạy trẻ hai đường', 'Con thơ rối trí biết phương nào theo'],
+    advice: 'Hai vợ chồng đang mỗi người dạy con một kiểu, người cấm người cho, trẻ dễ rối và học cách lách luật. Nên bàn riêng với nhau trước vài nguyên tắc chung về giờ giấc, tiền tiêu vặt, thiết bị điện tử. Có bất đồng thì đừng tranh cãi trước mặt con, tối về hai người hãy nói với nhau.',
+  },
+
+  // ── Con cái hiếu thuận ──
+  {
+    level: 'Đại Cát',
+    topic: 'Con cái hiếu thuận',
+    title: 'Bông hồng cài áo Vu Lan',
+    verse: ['Vu Lan cài đóa hồng tươi', 'Mẹ cha còn đó nụ cười trên môi'],
+    advice: 'Nhà con có phúc lớn, con cháu biết thương và biết ơn; nhà Phật gọi đó là quả lành từ những hạt giống tốt cả nhà cùng gieo. Mùa Vu Lan năm nay, cả nhà cùng làm một mâm cơm, mỗi người nói một lời cảm ơn cha mẹ, ông bà. Hiếu thảo được nuôi bằng những ngày thường, nên đừng đợi đến lễ mới nói lời thương.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Con cái hiếu thuận',
+    title: 'Cháu nhỏ quạt cho bà ngủ',
+    verse: ['Mình thương cha mẹ ra sao', 'Mai sau con trẻ cũng trao lại mình'],
+    advice: 'Lòng hiếu thảo của trẻ được gieo từ cách cha mẹ đối đãi với ông bà. Cho con cùng đi thăm ông bà, cùng gọt trái cây mời ông bà, cùng ngồi nghe ông bà kể chuyện ngày xưa. Con thấy cha mẹ kính trên nhường dưới thì tự khắc học được cách thương cha mẹ về sau.',
+  },
+  {
+    level: 'Thượng Cát',
+    topic: 'Con cái hiếu thuận',
+    title: 'Mười hai con giáp chung sân',
+    verse: ['Tuổi con hợp mệnh hay không', 'Thương con dạy tốt là trồng phúc sâu'],
+    advice: 'Dân gian hay xem mệnh con có tương sinh với mệnh cha mẹ không, nghe cho vui thì được, đừng đem ra mà lo. Đứa con nào đến với nhà mình cũng là một phúc lành, tuổi gì cũng đáng thương như nhau. Con hợp với cha mẹ nhờ được hiểu, được nghe, được dạy bằng gương tốt, chứ không nhờ con giáp nào cả.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Con cái hiếu thuận',
+    title: 'Gậy chống tự vót',
+    verse: ['Về già tự liệu lấy thân', 'Con thương là phúc chẳng cần đòi công'],
+    advice: 'Thương con nhiều nhưng đừng nuôi con như một khoản để dành cho tuổi già. Ngay từ bây giờ, hai vợ chồng tự lo một khoản tiết kiệm, bảo hiểm sức khỏe và thói quen sống khỏe cho mình. Con thấy cha mẹ an ổn thì hiếu thảo bằng niềm vui, chứ không phải bằng gánh nặng.',
+  },
+  {
+    level: 'Trung Cát',
+    topic: 'Con cái hiếu thuận',
+    title: 'Tấm thiệp vẽ sáp màu',
+    verse: ['Thiệp hồng nét vẽ vụng về', 'Chữ ơn con viết bốn bề ấm êm'],
+    advice: 'Biết ơn là bài học lớn lên từ những việc rất nhỏ. Tập cho con nói lời cảm ơn khi được giúp, tự làm thiệp mừng sinh nhật ông bà, mời người lớn ăn trước trong bữa cơm. Khi con làm vậy, đừng chê thiệp vẽ vụng, hãy treo nó lên chỗ cả nhà đều thấy.',
+  },
+  {
+    level: 'Tiểu Cát',
+    topic: 'Con cái hiếu thuận',
+    title: 'Mảnh vườn quê của mẹ',
+    verse: ['Mẹ cha muốn ở quê nhà', 'Thương thì hỏi ý tuổi già muốn chi'],
+    advice: 'Tấm lòng hiếu của con đang tốt, chỉ cần thêm một chút lắng nghe. Trước khi quyết thay cha mẹ chuyện chỗ ở, chuyện đi lại hay chuyện chi tiêu, hãy hỏi cha mẹ muốn gì và vì sao. Được tự quyết đời mình và được con tôn trọng, đó là niềm vui lớn của người già.',
+  },
+  {
+    level: 'Trung Bình',
+    topic: 'Con cái hiếu thuận',
+    title: 'Chuông chiều gọi con về',
+    verse: ['Con còn nông nổi tuổi xanh', 'Mẹ cha nhẫn nại chẳng đành trách con'],
+    advice: 'Con trẻ dạo này có vẻ xa cách, ít hỏi han, đôi lúc trả lời cộc lốc. Đừng vội gán chữ “vô ơn” hay “bất hiếu”, tuổi lớn ai cũng có lúc vụng về như vậy. Cha mẹ cứ giữ cửa lòng mở, rủ con làm một việc chung mà con thích, và kể cho con nghe ngày xưa cha mẹ cũng từng như thế.',
+  },
+  {
+    level: 'Trung Bình',
+    topic: 'Con cái hiếu thuận',
+    title: 'Cây nến cháy hai đầu',
+    verse: ['Lo cha lo mẹ quên mình', 'Giữ thân khỏe mạnh mới sinh hiếu bền'],
+    advice: 'Chữ hiếu của con rất đáng quý, nhưng dạo này con đang gánh quá sức mà không nói với ai. Chăm cha mẹ lâu dài cần sức bền, nên hãy chia việc với anh chị em, nhờ thêm người giúp khi cần, và giữ cho mình giờ ngủ, giờ đi khám sức khỏe. Con khỏe thì cha mẹ mới yên tâm, đó cũng là một cách báo hiếu.',
+  },
+];

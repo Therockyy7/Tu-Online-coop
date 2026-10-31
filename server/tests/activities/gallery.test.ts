@@ -1,4 +1,4 @@
-// Điện Tăng Đoàn: quỳ lạy chân dung (giữ chỗ, đủ 3 lạy mới thành lễ, chặn lạy dồn, thời gian hồi theo chân dung).
+// Điện Tăng Đoàn: đảnh lễ chân dung Sư Thầy (giữ chỗ, đủ 3 lạy mới thành lễ, chặn lạy dồn, thời gian hồi theo chân dung).
 import { describe, expect, it } from 'vitest';
 import { PORTRAIT_BOW } from '@shared/index';
 import type { GalleryBowEvent, GalleryPublicState } from '@shared/activities/temple';

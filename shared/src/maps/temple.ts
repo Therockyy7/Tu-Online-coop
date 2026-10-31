@@ -119,8 +119,9 @@ colliders.push(
   }),
 );
 
-// ── Điện Tăng Đoàn (nhà thờ chân dung, thay Tăng xá cũ): cửa giữa mặt Nam, 2 hàng cột son, ──
-// 3 khám thờ chân dung mỗi bên tường Tây/Đông, mỗi khám có bàn thờ + bồ đoàn để quỳ lạy; bàn thờ chính sát tường Bắc.
+// ── Điện Tăng Đoàn (điện tuyên dương chư Tăng còn đang tu học, thay Tăng xá cũ): cửa giữa mặt Nam, 2 hàng cột son, ──
+// 3 chân dung Sư Thầy mỗi bên tường Tây/Đông, trước mỗi chân dung có kệ ống quẻ + bồ đoàn để đảnh lễ rồi bóc quẻ;
+// bệ Bảng Vàng vinh danh sát tường Bắc. (Tên hằng/nhãn va chạm `shrine*`, `tang_doan_altar`, `crane` giữ từ bản cũ.)
 /** Bố cục Điện Tăng Đoàn — dùng chung cho va chạm (ở đây) và dựng hình (client). */
 export const TANG_DOAN = {
   x: 31,
@@ -135,9 +136,9 @@ export const TANG_DOAN = {
   /** Hàng cột trong: x = x ± colX, tại các z này. */
   colX: 2.3,
   colZs: [-27, -29.8, -32.6, -35.4],
-  /** Tâm khám thờ chân dung (giữa hai cột) — 3 khám mỗi bên. */
+  /** Tâm chân dung Sư Thầy (giữa hai cột) — 3 chân dung mỗi bên. */
   shrineZs: [-28.4, -31.2, -34],
-  /** Bàn thờ khám: sâu (tính từ mặt tường trong) × rộng. */
+  /** Kệ ống quẻ trước chân dung: sâu (tính từ mặt tường trong) × rộng. */
   shrineTable: { d: 0.6, w: 1.5 },
   /** Từ mặt tường trong tới chỗ quỳ. */
   kneelOff: 1.55,
@@ -183,7 +184,7 @@ export const TANG_DOAN = {
         x: wallX + inward * T.kneelOff,
         z,
         r: 0.9,
-        label: 'Quỳ lạy chân dung',
+        label: 'Đảnh lễ Sư Thầy',
         ry,
         data: { photo: `portrait_${n}`, index: n },
       });
