@@ -1,9 +1,11 @@
 // Thi nhảy (spec 8.3): DJ/Phương Trượng mở vòng (15 giây chờ), vòng bắt đầu ở ranh ô nhịp của bài DJ đang phát,
 // 16 ô nhịp; mỗi ô nhập chuỗi mũi tên rồi Space đúng phách 4. Cuối vòng xếp hạng, thưởng Xu, người nhất thành DJ.
+// Nhịp lấy từ bộ đếm dùng chung do bàn DJ ghi (dj_bpm, dj_beat0 — kể cả bài thu sẵn); sảnh/vòng nhảy báo ngược lại
+// cho bàn DJ (dance_lobby_until, dance_until) để không ai dừng / đổi bài giữa chừng.
 import { z } from 'zod';
 import { DANCE, DJ, type Judgement, type Pid } from '@shared/index';
 import { arrowCount, judgeDanceHit, measureScore, type DancePublicState } from '@shared/activities/dance';
-import { nextMeasureAt } from '@shared/activities/dj';
+import { nextMeasureAt, type BeatGrid } from '@shared/activities/dj';
 import type { ActivityContext, ActivityInstance, ActivityServerModule, ServerPlayerView } from '../types';
 
 const measureMsg = z.object({ i: z.number().int().min(0).max(64), ok: z.boolean(), t: z.number() });
@@ -28,8 +30,12 @@ function create(ctx: ActivityContext): ActivityInstance {
   const dancers = new Map<Pid, Dancer>();
   let finalized = -1;
   let cancel: (() => void) | null = null;
+  /** Mốc phách mạnh của bài DJ mà vòng đang bám (đổi giữa vòng → dời mốc vòng theo). */
+  let gridBeat0 = 0;
 
   const measureMs = () => (60_000 / bpm) * 4;
+  /** Báo cho DJ: tới mốc này không được dừng / đổi bài (nhạc phải khớp nhịp đang chấm điểm). */
+  const markUntil = () => ctx.shared.set('dance_until', startAt + DANCE.measures * measureMs() + 500);
 
   const publish = () => {
     const s: DancePublicState = {
@@ -45,10 +51,29 @@ function create(ctx: ActivityContext): ActivityInstance {
     ctx.setState(s);
   };
 
-  const djTimeline = () => {
-    const track = DJ.tracks[ctx.shared.get('dj_track')] ?? DJ.tracks[0]!;
-    return { bpm: track.bpm, startedAt: ctx.shared.get('dj_started_at') };
+  /** Lưới phách của bài DJ đang phát; bàn DJ chưa ghi gì → nhịp bài tổng hợp đầu, phách 0 = bây giờ. */
+  const djGrid = (): BeatGrid => {
+    const b = ctx.shared.get('dj_bpm');
+    const b0 = ctx.shared.get('dj_beat0');
+    return b > 0 && b0 > 0 ? { beat0: b0, bpm: b } : { beat0: ctx.now(), bpm: DJ.tracks[0]!.bpm };
   };
+
+  /**
+   * Bài DJ đổi pha lưới giữa vòng (bài thu sẵn ghép nhiều đoạn lệch pha, phát lại / phát tiếp): dời mốc vòng theo phần
+   * lẻ dưới nửa phách để phách chấm điểm vẫn trùng phách nhạc — không nhảy ô nhịp. Lệch tròn phách thì giữ nguyên.
+   */
+  function followGrid(): void {
+    const b0 = ctx.shared.get('dj_beat0');
+    if (!b0 || b0 === gridBeat0 || ctx.shared.get('dj_bpm') !== bpm) return;
+    const beat = 60_000 / bpm;
+    const d = b0 - gridBeat0;
+    const shift = d - Math.round(d / beat) * beat;
+    gridBeat0 = b0;
+    if (Math.abs(shift) < 1) return;
+    startAt += shift;
+    markUntil();
+    publish();
+  }
 
   const canOpen = (p: ServerPlayerView) => p.isHost || ctx.djPid() === p.pid;
 
@@ -56,6 +81,8 @@ function create(ctx: ActivityContext): ActivityInstance {
     if (phase !== 'idle') return ctx.toast(p.pid, 'Đang có vòng nhảy rồi.', 'warn');
     phase = 'lobby';
     lobbyEndsAt = ctx.now() + DANCE.lobbyMs;
+    // Báo bàn DJ: sảnh đang mở — nhạc dừng thì tự phát, không cho dừng / đổi bài.
+    ctx.shared.set('dance_lobby_until', lobbyEndsAt);
     dancers.clear();
     results = [];
     seed = ctx.rng.int(1, 2 ** 30);
@@ -80,13 +107,13 @@ function create(ctx: ActivityContext): ActivityInstance {
       ctx.chatSystem('Vòng nhảy bị hủy vì không ai lên sàn.');
       return;
     }
-    const tl = djTimeline();
-    bpm = tl.bpm;
-    startAt = nextMeasureAt({ startedAt: tl.startedAt, bpm }, ctx.now() + 1500);
+    const g = djGrid();
+    bpm = g.bpm;
+    gridBeat0 = g.beat0;
+    startAt = nextMeasureAt(g, ctx.now() + 1500);
     phase = 'playing';
     finalized = -1;
-    // Báo cho DJ: tới mốc này không được đổi bài (nhạc phải khớp nhịp đang chấm điểm).
-    ctx.shared.set('dance_until', startAt + DANCE.measures * measureMs() + 500);
+    markUntil();
     publish();
   }
 
@@ -179,6 +206,7 @@ function create(ctx: ActivityContext): ActivityInstance {
 
     tick(_dt, now) {
       if (phase !== 'playing') return;
+      followGrid();
       const mMs = measureMs();
       const current = Math.floor((now - startAt - 400) / mMs);
       while (finalized < current && finalized < DANCE.measures - 1) {
@@ -197,6 +225,7 @@ function create(ctx: ActivityContext): ActivityInstance {
       dancers.clear();
       phase = 'idle';
       ctx.shared.set('dance_until', 0);
+      ctx.shared.set('dance_lobby_until', 0);
       publish();
     },
 

@@ -92,6 +92,13 @@ export interface ActivityContext {
   addDoSay(pid: Pid, delta: number): void;
   /** Thêm/làm mới buff cho 1 người hoặc cả phòng. */
   addBuff(target: Pid | 'room', buff: BuffId, durationMs?: number): void;
+  /**
+   * Đặt cược bằng **Công Đức thật** (Sòng Công Đức): cần Đức khả dụng ≥ amount; trừ cùng lúc cả Công Đức tích lũy lẫn
+   * Đức đúng amount (không nhân hệ số, không vào Quỹ, không hiện số bay). Tụt cấp thì báo riêng + tin chat. Trả false
+   * (không đổi gì) nếu không đủ Đức hoặc amount không phải số nguyên dương. Trả thưởng / hoàn cược dùng
+   * `reward(pid, n, { raw: true, noPool: true, label | silent })`.
+   */
+  wager(pid: Pid, amount: number): boolean;
   setHeld(pid: Pid, item: HeldItem | null): void;
   /** Danh hiệu tạm hiển thị cạnh tên (vd "Đại gia"). */
   setTitle(pid: Pid, title: string | null): void;

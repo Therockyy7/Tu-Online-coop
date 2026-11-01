@@ -1,0 +1,132 @@
+/* Đường đua ngựa — bổ sung cho casino.css (tiền tố dn-): 6 ô ngựa 3 cột có số làn + dải màu áo nài, thứ hạng trực tiếp
+   (thanh tiến độ, đổi chỗ bằng CSS order), dãy ngựa về nhất. */
+.dn-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+.cs-tile.dn-tile {
+  overflow: hidden;
+  padding-bottom: 14px;
+}
+.dn-tile .cs-tile-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  text-align: left;
+}
+.dn-stripe {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+}
+.dn-num {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  color: #fff;
+  font: 800 12px var(--font-title);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.dn-num.light {
+  border-color: #6a5038;
+  color: #2a1d10;
+  text-shadow: none;
+}
+.dn-standings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  background: #fbf6ea;
+}
+.dn-row {
+  display: grid;
+  grid-template-columns: 22px 24px 118px 1fr 54px;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 8px;
+  font: 700 13px var(--font-body);
+}
+.dn-row.mine {
+  background: #fff3d6;
+}
+.dn-row.first {
+  background: #ffe9a8;
+  box-shadow: inset 0 0 0 2px #e0b040;
+}
+.dn-rank {
+  font: 800 15px var(--font-title);
+  color: #6e2c17;
+  text-align: center;
+}
+.dn-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dn-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: #e8dcc0;
+  overflow: hidden;
+}
+.dn-bar i {
+  display: block;
+  height: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+.dn-note {
+  font: 800 12px var(--font-title);
+  color: var(--ink-soft);
+  text-align: right;
+}
+.dn-row.done .dn-note {
+  color: #1f6a3a;
+}
+.dn-winners {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f6a3a;
+  text-align: center;
+}
+.dn-recent {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  background: #fbf6ea;
+}
+.dn-recent-head {
+  font: 800 13px var(--font-title);
+  color: var(--ink-soft);
+}
+.dn-recent .cs-road {
+  margin-top: 6px;
+  min-height: 24px;
+}
+.cs-bead.dn-bead {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.cs-bead.dn-bead.light {
+  color: #2a1d10;
+  text-shadow: none;
+  box-shadow: inset 0 0 0 2px #6a5038;
+}
+.dn-open {
+  width: 100%;
+  margin-top: 4px;
+}

@@ -47,6 +47,12 @@ export const STATION_KINDS = [
   'npc_table',
   'baucua_table',
   'truth_wheel',
+  // Sòng Công Đức
+  'taixiu_table',
+  'xidach_table',
+  'baicao_table',
+  'slot_machine',
+  'race_rail',
 ] as const;
 export type StationKind = (typeof STATION_KINDS)[number];
 

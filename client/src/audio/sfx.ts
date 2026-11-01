@@ -256,4 +256,61 @@ export const SFX: Record<SfxId, Recipe> = {
     ]);
     noise(v, t, { decay: 0.4, gain: 0.25, filter: 'lowpass', freq: 1200 });
   },
+  // ── Sòng Công Đức + bàn DJ ──
+  card_deal: (v, t, r) => noise(v, t, { attack: 0.004, decay: 0.08, gain: 0.32, filter: 'bandpass', freq: 2200 * r, freqEnd: 5200 * r, q: 1.1 }),
+  card_flip: (v, t, r) => {
+    noise(v, t, { decay: 0.05, gain: 0.34, filter: 'highpass', freq: 2800 * r });
+    tone(v, t, { freq: 820 * r, freqEnd: 600 * r, glide: 0.03, decay: 0.04, gain: 0.07 });
+  },
+  chips: (v, t, r) => {
+    for (let i = 0; i < 4; i++) tone(v, t + i * 0.032, { type: 'triangle', freq: (2300 + i * 170) * r, decay: 0.045, gain: 0.11 });
+    noise(v, t, { decay: 0.07, gain: 0.1, filter: 'highpass', freq: 5200 });
+  },
+  dice_cup: (v, t, r) => {
+    for (let i = 0; i < 9; i++) {
+      noise(v, t + i * 0.048, { decay: 0.03, gain: 0.2, filter: 'bandpass', freq: (1500 + ((i * 373) % 1100)) * r, q: 2.2 });
+      if (i % 3 === 0) woodblock(v, t + i * 0.048, 980 * r, 0.25);
+    }
+  },
+  slot_spin: (v, t, r) => {
+    noise(v, t, { attack: 0.06, decay: 1.9, gain: 0.1, filter: 'bandpass', freq: 650 * r, freqEnd: 1300 * r, q: 2 });
+    for (let i = 0; i < 14; i++) woodblock(v, t + i * 0.14, 1250 * r, 0.12);
+  },
+  slot_stop: (v, t, r) => {
+    woodblock(v, t, 880 * r, 0.55);
+    tone(v, t, { freq: 190 * r, freqEnd: 120 * r, glide: 0.08, decay: 0.12, gain: 0.3 });
+  },
+  jackpot: (v, t, r) => {
+    [72, 76, 79, 84, 88, 91, 96].forEach((m, i) =>
+      tone(v, t + i * 0.085, { type: 'square', freq: mtof(m) * r, attack: 0.005, decay: 0.38, gain: 0.1, lowpass: 3200 }),
+    );
+    metalBell(v, t + 0.6, 1046 * r, 0.25, 2.2, SMALL_BELL);
+    for (let i = 0; i < 12; i++) tone(v, t + 0.1 + i * 0.07, { type: 'triangle', freq: (2400 + (i % 4) * 300) * r, decay: 0.06, gain: 0.06 });
+  },
+  race_bell: (v, t, r) => {
+    for (let i = 0; i < 7; i++) metalBell(v, t + i * 0.085, 1320 * r, 0.16, 0.5, SMALL_BELL);
+  },
+  gallop: (v, t, r) => {
+    for (const d of [0, 0.085, 0.17]) {
+      tone(v, t + d, { freq: 120 * r, freqEnd: 58 * r, glide: 0.05, decay: 0.08, gain: 0.32 });
+      noise(v, t + d, { decay: 0.03, gain: 0.12, filter: 'lowpass', freq: 900 });
+    }
+  },
+  scratch: (v, t, r) => {
+    // Cào đĩa than: ba lần đẩy–kéo nhanh, cao độ vút lên rồi chúi xuống theo tay.
+    for (const [d, f0, f1] of [
+      [0, 240, 900],
+      [0.085, 820, 250],
+      [0.165, 300, 1150],
+    ] as const) {
+      tone(v, t + d, { type: 'sawtooth', freq: f0 * r, freqEnd: f1 * r, glide: 0.07, attack: 0.004, decay: 0.085, gain: 0.08, lowpass: 2400 });
+      noise(v, t + d, { attack: 0.004, decay: 0.075, gain: 0.13, filter: 'bandpass', freq: f0 * 2.5 * r, freqEnd: f1 * 2.5 * r, q: 1.8 });
+    }
+  },
+  smoke_jet: (v, t) => {
+    // Bình CO2 mở van: tiếng xì dải cao kéo dài cỡ cột khói (~1,5 giây) + luồng hơi trầm lúc phụt + tiếng "tách" van.
+    noise(v, t, { attack: 0.03, decay: 2, gain: 0.26, filter: 'highpass', freq: 2200 });
+    noise(v, t, { attack: 0.02, decay: 0.6, gain: 0.18, filter: 'bandpass', freq: 900, freqEnd: 450, q: 0.7 });
+    noise(v, t, { attack: 0.002, decay: 0.06, gain: 0.2, filter: 'highpass', freq: 5000 });
+  },
 };

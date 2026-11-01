@@ -626,6 +626,11 @@ export class Fx {
   private rain: { kind: BurstKind; until: number; acc: number; rate: number; center: () => { x: number; z: number } } | null =
     null;
   private time = 0;
+  /**
+   * Tường che chữ bay của map hiện tại (Game đặt mỗi lần dựng map; xem WorldHandles.labelOccluded): chữ bay là HTML vẽ
+   * đè canvas, bị tường che (vd "+N Công Đức" của người trong Sòng khi đứng ở Bar) thì ẩn. null = luôn hiện.
+   */
+  occluder: ((ax: number, az: number, bx: number, bz: number) => boolean) | null = null;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -644,6 +649,9 @@ export class Fx {
     el.append(inner);
     const obj = new CSS2DObject(el);
     obj.position.set(x + (Math.random() - 0.5) * 0.3, y, z + (Math.random() - 0.5) * 0.3);
+    // Chữ tạo sau Fx.update (mini-game) vẫn được vẽ một khung trước lần update kế — xét tường che ngay từ đầu.
+    const cam = this.camera.position;
+    obj.visible = !this.occluder || !this.occluder(cam.x, cam.z, obj.position.x, obj.position.z);
     this.scene.add(obj);
     this.floats.push({ obj, el, inner, age: 0, life: 1.7, y0: obj.position.y });
     if (this.floats.length > 40) this.removeFloat(0);
@@ -749,10 +757,14 @@ export class Fx {
 
   update(dt: number): void {
     this.time += dt;
+    const occ = this.occluder;
+    const cam = this.camera.position;
     for (let i = this.floats.length - 1; i >= 0; i--) {
       const f = this.floats[i]!;
       f.age += dt;
       const t = f.age / f.life;
+      // Ẩn bằng obj.visible (CSS2DRenderer tự đặt style.display mỗi khung); camera ra chỗ nhìn thấy thì hiện lại.
+      f.obj.visible = !occ || !occ(cam.x, cam.z, f.obj.position.x, f.obj.position.z);
       f.obj.position.y = f.y0 + (1 - Math.pow(1 - Math.min(1, t), 2)) * 1.3;
       f.el.style.opacity = String(t < 0.7 ? 1 : Math.max(0, 1 - (t - 0.7) / 0.3));
       f.inner.style.transform = `scale(${t < 0.12 ? 0.6 + (t / 0.12) * 0.55 : 1.15 - Math.min(0.15, (t - 0.12) * 0.5)})`;

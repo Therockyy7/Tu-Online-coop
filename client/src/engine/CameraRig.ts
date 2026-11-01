@@ -36,6 +36,12 @@ const LOW_TAGS = new Set([
   'bar_counter',
   'bar_counter_side',
   'dj_booth',
+  // Sòng Công Đức: bàn cược (mặt bàn 0,86 m) và đường đua (0,95 m, phông 1,46 m) thấp hơn tầm camera; máy Nổ Hũ, hũ
+  // jackpot, tường Sòng vẫn là vật cao.
+  'taixiu_table',
+  'xidach_table',
+  'baicao_table',
+  'race_track',
   'well',
   'path_lantern',
   'nghe',

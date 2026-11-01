@@ -85,6 +85,8 @@ export class FakeActivityContext implements ActivityContext {
   readonly fxs: { msg: FxMsg; to: Pid[] | 'room' }[] = [];
   readonly chats: string[] = [];
   readonly logs: unknown[][] = [];
+  /** Các lần đặt cược Công Đức thành công (ctx.wager). */
+  readonly wagers: { pid: Pid; amount: number }[] = [];
   roomBuffs: BuffState[] = [];
   dj: Pid | null = null;
   private timers: Timer[] = [];
@@ -257,6 +259,15 @@ export class FakeActivityContext implements ActivityContext {
     }
     const p = this.mustPlayer(target);
     p.buffs = [...p.buffs.filter((b) => b.id !== buff), entry];
+  }
+  wager(pid: Pid, amount: number): boolean {
+    const p = this.mustPlayer(pid);
+    if (!Number.isInteger(amount) || amount <= 0 || p.duc < amount || p.congDuc < amount) return false;
+    p.congDuc -= amount;
+    p.duc -= amount;
+    p.rank = rankOf(p.congDuc);
+    this.wagers.push({ pid, amount });
+    return true;
   }
   setHeld(pid: Pid, item: HeldItem | null): void {
     this.mustPlayer(pid).held = item;

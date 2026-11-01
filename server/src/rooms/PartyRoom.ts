@@ -6,6 +6,7 @@ import {
   ACCESSORY_IDS,
   BLESS,
   BUFFS,
+  CASINO,
   CHOP,
   COOK,
   DO_SAY,
@@ -108,6 +109,8 @@ export class PartyRoom {
   private lastTick = Date.now();
   private pidSeq = 0;
   private disposed = false;
+  /** Lần đổi ghế Phương Trượng gần nhất giữa 2 người (để không báo lại khi cùng cặp đổi qua lại — HOST.swapQuietMs). */
+  private lastHostSwap: { a: Pid; b: Pid; at: number } | null = null;
 
   constructor(
     readonly code: string,
@@ -503,7 +506,9 @@ export class PartyRoom {
       p.lastPoseAt = now;
       if (!p.kneeling(now)) p.anim = 'idle';
     }
-    if (change.to === 'bar') this.djPid = this.hostPid;
+    // Danh hiệu DJ chỉ do thắng vòng nhảy (setDj) mà có — Hạ Sơn KHÔNG trao cho Phương Trượng (Phương Trượng không còn
+    // quyền riêng ở bàn DJ, vẫn mở được vòng nhảy). Giữ người thắng vòng nhảy gần nhất nếu người đó còn trong phòng.
+    if (this.djPid && !this.players.has(this.djPid)) this.djPid = null;
     this.broadcastRoom({ map: change.to, mapChange: null, djPid: this.djPid });
     for (const p of this.players.values()) {
       this.broadcastPatch(p.pid, { x: round2(p.x), z: round2(p.z), ry: p.ry, held: null, activity: null, anim: p.anim });
@@ -538,6 +543,17 @@ export class PartyRoom {
     if (!host) return;
     this.broadcastPatch(host.pid, { isHost: true });
     this.sendSelf(host, { isHost: true });
+    // Cùng một cặp người đổi ghế qua lại trong HOST.swapQuietMs (vd đặt / gỡ cược quanh mức Công Đức của nhau): ghế vẫn
+    // đổi thật (patch ở trên), nhưng không bắn lại banner / chuông / tin chat cho cả phòng.
+    const now = Date.now();
+    const last = this.lastHostSwap;
+    const repeat =
+      !!prev &&
+      !!last &&
+      now - last.at < HOST.swapQuietMs &&
+      ((last.a === prev.pid && last.b === host.pid) || (last.a === host.pid && last.b === prev.pid));
+    if (prev) this.lastHostSwap = { a: prev.pid, b: host.pid, at: now };
+    if (repeat) return;
     const connected = [...this.players.values()].filter((p) => p.connected).length;
     if (connected > 1) {
       this.fx({ type: 'banner', title: `${host.name} trở thành ${HOST_TITLE}!`, sub: 'Người nhiều Công Đức nhất chùa — mở menu bằng phím H', tone: 'gold', big: true });
@@ -582,7 +598,9 @@ export class PartyRoom {
     const prof = p.profile;
     const gain = opts.raw ? Math.round(base) : computeGain(base, prof.tapNiem, this.effectiveBuffs(p, now), now);
     if (gain <= 0) return 0;
-    const oldRank = rankOf(prof.congDuc);
+    // Thăng cấp thật chỉ khi vượt cấp cao nhất từng đạt — tính theo Công Đức đỉnh TRƯỚC lần cộng này (gỡ / hoàn / thắng
+    // lại cược Sòng Công Đức qua ngưỡng cấp chỉ là phục hồi cấp cũ).
+    const bestRank = rankOf(prof.peakCongDuc);
     prof.congDuc += gain;
     prof.duc += gain;
     prof.peakCongDuc = Math.max(prof.peakCongDuc, prof.congDuc);
@@ -593,7 +611,7 @@ export class PartyRoom {
       if (Math.floor(this.pool) !== before) this.broadcastRoom({ pool: Math.floor(this.pool) });
     }
     if (!opts.silent) this.fx({ type: 'karma', pid, amount: gain, label: opts.label });
-    this.afterKarmaChange(p, oldRank);
+    this.afterKarmaChange(p, bestRank);
     return gain;
   }
 
@@ -609,12 +627,18 @@ export class PartyRoom {
     this.afterKarmaChange(p, oldRank);
   }
 
-  private afterKarmaChange(p: ServerPlayer, oldRank: RankId): void {
+  /**
+   * Gửi Công Đức / cấp mới cho chính người đó (self) + cả phòng (patch). Thăng cấp (pháo rankup, banner, tin chat, đổi
+   * áo mặc định theo cấp) chỉ khi cấp mới vượt `prevBest`: reward truyền cấp tính theo Công Đức đỉnh TRƯỚC lần cộng, nên
+   * phục hồi lại cấp cũ (gỡ / hoàn / thắng lại cược) chỉ cập nhật số, không báo cả phòng, không đổi áo người chơi đã chọn;
+   * penalize / wager truyền cấp trước khi trừ (chỉ có thể tụt).
+   */
+  private afterKarmaChange(p: ServerPlayer, prevBest: RankId): void {
     const prof = p.profile;
     const rank = rankOf(prof.congDuc);
     const self: Partial<SelfState> = { congDuc: prof.congDuc, duc: prof.duc, peakCongDuc: prof.peakCongDuc, rank };
     const pub: Partial<PlayerPublic> = { congDuc: prof.congDuc, rank };
-    if (rankIndex(rank) > rankIndex(oldRank)) {
+    if (rankIndex(rank) > rankIndex(prevBest)) {
       prof.outfit = { ...prof.outfit, robe: defaultRobeFor(rank) };
       self.outfit = prof.outfit;
       pub.outfit = prof.outfit;
@@ -670,6 +694,31 @@ export class PartyRoom {
     p.profile.duc -= a;
     this.sendSelf(p, { duc: p.profile.duc });
     this.profiles.markDirty(p.key);
+    return true;
+  }
+
+  /** Đặt cược bằng Công Đức thật (Sòng Công Đức) — xem `ActivityContext.wager`. */
+  wager(pid: Pid, amount: number): boolean {
+    const p = this.players.get(pid);
+    if (!p || !Number.isInteger(amount) || amount <= 0) return false;
+    const prof = p.profile;
+    if (prof.duc < amount || prof.congDuc < amount) return false;
+    const oldRank = rankOf(prof.congDuc);
+    prof.congDuc -= amount;
+    prof.duc -= amount;
+    prof.stats.wagered = (prof.stats.wagered ?? 0) + amount;
+    this.afterKarmaChange(p, oldRank);
+    const rank = rankOf(prof.congDuc);
+    if (rankIndex(rank) < rankIndex(oldRank)) {
+      this.toast(pid, `📉 Tụt xuống ${RANK_NAMES[rank]} vì đỏ đen! Về chùa làm công quả gỡ lại nhé.`, 'bad');
+      // Tin chat cho cả phòng tối đa 1 lần / CASINO.demoteChatCooldownMs mỗi người (đặt / gỡ cược quanh ngưỡng cấp
+      // không spam cả phòng); toast riêng ở trên vẫn gửi mỗi lần.
+      const now = Date.now();
+      if (now - p.lastDemoteChatAt >= CASINO.demoteChatCooldownMs) {
+        p.lastDemoteChatAt = now;
+        this.chatSystem(`📉 ${p.name} tụt xuống ${RANK_NAMES[rank]} vì đỏ đen!`);
+      }
+    }
     return true;
   }
 

@@ -143,6 +143,7 @@ export class ActivityHost {
       addTapNiem: (pid, delta, silent) => room.addTapNiem(pid, delta, silent),
       addXu: (pid, delta) => room.addXu(pid, delta),
       spendDuc: (pid, amount) => room.spendDuc(pid, amount),
+      wager: (pid, amount) => room.wager(pid, amount),
       setVip: (pid) => room.setVip(pid),
       addDoSay: (pid, delta) => room.addDoSay(pid, delta),
       addBuff: (target, buff, durationMs) => room.addBuff(target, buff, durationMs),

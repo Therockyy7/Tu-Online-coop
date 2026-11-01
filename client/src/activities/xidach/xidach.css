@@ -1,0 +1,97 @@
+/* Bàn Xì Dách — bổ sung cho casino.css (tiền tố xd-): mặt nỉ xanh chứa tay nhà cái + các ghế, nhãn kết quả xét bài. */
+.xd-bet {
+  display: grid;
+}
+.xd-bet .cs-tile {
+  min-height: 70px;
+}
+.xd-pay {
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #6e4a12;
+  text-align: center;
+}
+.xd-felt {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 16px;
+  border: 3px solid #e0c287;
+  background: radial-gradient(ellipse at 50% 0%, #2f8a52, #1a5c32 75%);
+}
+.xd-felt .cs-hand {
+  grid-template-columns: 118px 1fr auto auto;
+  min-height: 52px;
+}
+.xd-felt .cs-hand-label,
+.xd-felt .cs-hand-score {
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+.xd-felt .cs-hand.me .cs-hand-label,
+.xd-felt .cs-hand.me .cs-hand-score {
+  color: #6e2c17;
+  text-shadow: none;
+}
+.xd-felt .cs-hand.xd-dealer {
+  border-bottom: 2px dashed rgba(255, 209, 102, 0.55);
+  border-radius: 12px 12px 0 0;
+  padding-bottom: 8px;
+}
+.xd-felt .cs-hand.xd-dealer .cs-hand-label {
+  color: #ffd166;
+}
+.xd-felt .cs-cards {
+  flex-wrap: wrap;
+}
+.xd-empty {
+  padding: 10px 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #e8f5ec;
+  text-align: center;
+}
+.xd-verdict {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font: 800 12.5px var(--font-title);
+  color: #fff;
+  animation: xd-pop 0.3s ease-out both;
+}
+.xd-verdict.win {
+  background: #2f9a55;
+  box-shadow: 0 0 10px rgba(125, 255, 160, 0.6);
+}
+.xd-verdict.push {
+  background: #8a7a5c;
+}
+.xd-verdict.lose {
+  background: #b8322a;
+}
+.xd-verdict.wait {
+  background: rgba(0, 0, 0, 0.35);
+  animation: none;
+}
+@keyframes xd-pop {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.xd-winners {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f6a3a;
+  text-align: center;
+}
+.xd-open {
+  width: 100%;
+  margin-top: 10px;
+}

@@ -1,0 +1,292 @@
+/* Bộ giao diện dùng chung Sòng Công Đức — nỉ xanh/đỏ sòng, viền vàng đồng, phỉnh tròn. Tiền tố cs-. */
+.cs-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.cs-phase {
+  font: 800 17px var(--font-title);
+  color: #1f6a3a;
+}
+.cs-phase.roll {
+  color: #c8322a;
+}
+.cs-phase.result {
+  color: #b8862f;
+}
+.cs-phase.idle {
+  color: var(--ink-soft);
+}
+.cs-timer {
+  min-width: 44px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #1f6a3a;
+  color: #fff;
+  font: 800 15px var(--font-title);
+  text-align: center;
+}
+.cs-timer.hot {
+  background: #c8322a;
+  animation: cs-pulse 0.6s ease-in-out infinite alternate;
+}
+@keyframes cs-pulse {
+  to {
+    transform: scale(1.08);
+  }
+}
+.cs-wallet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.cs-pill {
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  background: #fff3d6;
+  font: 800 14px var(--font-title);
+}
+.cs-pill.duc {
+  background: #fff9e8;
+}
+.cs-extra {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.cs-chips {
+  display: flex;
+  gap: 8px;
+  margin: 6px 0 10px;
+}
+.cs-chip {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 4px dashed rgba(255, 255, 255, 0.85);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35), inset 0 0 0 3px rgba(0, 0, 0, 0.15);
+  color: #fff;
+  font: 800 15px var(--font-title);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.cs-chip.v0 {
+  background: #4a7bd8;
+}
+.cs-chip.v1 {
+  background: #c8322a;
+}
+.cs-chip.v2 {
+  background: #1f8a4a;
+}
+.cs-chip.v3 {
+  background: #1b1b1f;
+  border-color: #ffd166;
+  color: #ffd166;
+}
+.cs-chip.on {
+  transform: translateY(-4px) scale(1.08);
+  box-shadow: 0 0 0 3px #ffd166, 0 6px 10px rgba(0, 0, 0, 0.35);
+}
+.cs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.cs-tile {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  min-height: 78px;
+  padding: 10px 6px;
+  border-radius: 16px;
+  border: 3px solid #e0c287;
+  background: radial-gradient(circle at 50% 30%, #2f8a52, #1a5c32);
+  color: #fff;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: transform 0.1s;
+}
+.cs-tile:hover:not(.off) {
+  transform: translateY(-2px);
+}
+.cs-tile.red {
+  background: radial-gradient(circle at 50% 30%, #c8433a, #8a1f18);
+}
+.cs-tile.gold {
+  background: radial-gradient(circle at 50% 30%, #b88a2f, #6e4a12);
+}
+.cs-tile.hit {
+  border-color: #ffd166;
+  box-shadow: 0 0 18px #ffd166;
+}
+.cs-tile.off {
+  opacity: 0.55;
+  cursor: default;
+}
+.cs-tile-label {
+  font: 800 19px var(--font-title);
+  letter-spacing: 0.5px;
+}
+.cs-tile-sub {
+  font-size: 11.5px;
+  opacity: 0.85;
+}
+.cs-tile-odds {
+  position: absolute;
+  top: 6px;
+  right: 9px;
+  font: 800 13px var(--font-title);
+  color: #ffd166;
+}
+.cs-tile-bets {
+  font-size: 11.5px;
+  opacity: 0.92;
+}
+.cs-tile-stack {
+  position: absolute;
+  left: 7px;
+  top: 6px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: 13px;
+  background: #ffd166;
+  color: #3a2408;
+  font: 800 12px/26px var(--font-title);
+}
+.cs-result {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font: 800 16px var(--font-title);
+  text-align: center;
+}
+.cs-result.win {
+  background: #e3f7e6;
+  color: #1f6a3a;
+  border: 2px solid #74cf86;
+}
+.cs-result.lose {
+  background: #fde5e2;
+  color: #a5231b;
+  border: 2px solid #e98c80;
+}
+.cs-result.push {
+  background: #f4efe3;
+  color: var(--ink-soft);
+  border: 2px solid var(--line);
+}
+.cs-hint {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.cs-cards {
+  display: flex;
+  gap: 4px;
+}
+.cs-card {
+  display: inline-grid;
+  justify-items: center;
+  align-content: center;
+  width: 34px;
+  height: 48px;
+  border-radius: 6px;
+  border: 1px solid #b9ab8f;
+  background: #fffdf8;
+  color: #1b1b1f;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+  font: 800 14px/1 var(--font-title);
+}
+.cs-card i {
+  font-style: normal;
+  font-size: 16px;
+}
+.cs-card.red {
+  color: #c8322a;
+}
+.cs-card.back {
+  background: repeating-linear-gradient(45deg, #a5231b 0 4px, #c8433a 4px 8px);
+  color: transparent;
+  border-color: #ffd166;
+}
+.cs-hand {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 12px;
+}
+.cs-hand.me {
+  background: #fff3d6;
+  border: 2px solid var(--line);
+}
+.cs-hand-label {
+  font: 800 14px var(--font-title);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cs-hand-score {
+  font: 800 14px var(--font-title);
+  color: #6e2c17;
+}
+.cs-road {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.cs-bead {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #fff;
+  font: 800 11px var(--font-title);
+  background: #6a5038;
+}
+.cs-bead.t {
+  background: #c8322a;
+}
+.cs-bead.x {
+  background: #2f6fd0;
+}
+.cs-bead.tri {
+  background: #b8862f;
+}
+.cs-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+.cs-btn {
+  padding: 12px;
+  border: 0;
+  border-radius: 14px;
+  font: 800 18px var(--font-title);
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, #2f8a52, #1a5c32);
+  box-shadow: 0 4px 0 #0f3a1f;
+}
+.cs-btn.alt {
+  background: linear-gradient(135deg, #c8433a, #8a1f18);
+  box-shadow: 0 4px 0 #5a120d;
+}
+.cs-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

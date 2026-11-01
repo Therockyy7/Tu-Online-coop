@@ -205,11 +205,13 @@ describe('DJ', () => {
     ctx.mapId = 'bar';
     ctx.addPlayer({ pid: 'dj', isHost: true });
     ctx.setDj('dj');
-    ctx.placeAt('dj', 'dj_booth');
+    // Bàn DJ mở: phải lên bàn (E) trước rồi mới ra lệnh được.
+    instance.onInteract!(ctx.view('dj'), ctx.placeAt('dj', 'dj_booth'));
     ctx.shared.set('dance_until', ctx.time + 30_000);
     const other = DJ.tracks[1]!.id;
     instance.onAction!(ctx.view('dj'), 'track', { id: other });
     expect(ctx.toasts.at(-1)?.text).toContain('vòng nhảy');
+    expect((ctx.lastState<{ trackId: string }>()).trackId).not.toBe(other);
     ctx.time += 31_000;
     instance.onAction!(ctx.view('dj'), 'track', { id: other });
     expect((ctx.lastState<{ trackId: string }>()).trackId).toBe(other);

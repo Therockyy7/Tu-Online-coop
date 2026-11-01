@@ -85,6 +85,11 @@ export const ACTIVITY_NAMES: Record<ActivityId, string> = {
   mixology: 'Thi pha chế',
   baucua: 'Bầu Cua Cá Cọp',
   truthwheel: 'Vòng quay sự thật',
+  taixiu: 'Tài Xỉu chẵn lẻ',
+  xidach: 'Xì Dách',
+  baicao: 'Bài Cào 3 lá',
+  nohu: 'Nổ Hũ',
+  duangua: 'Đua Ngựa',
 };
 
 export const EMOTE_NAMES: Record<EmoteId, string> = {

@@ -298,6 +298,10 @@ export class Game {
     }
     this.map = getMap(mapId);
     this.handles = (mapId === 'temple' ? buildTemple : buildBar)(this.map, kit);
+    // Tường che nhãn tên / chữ bay (Bar: tường Bar ↔ Sòng); Chùa không có → nhãn như cũ.
+    const occluder = this.handles.labelOccluded ?? null;
+    this.players.occluder = occluder;
+    this.fx.occluder = occluder;
     const env = this.handles.environment;
     this.r.scene.add(this.handles.root);
     this.sun = null;
@@ -594,7 +598,9 @@ export class Game {
         const x = m.x ?? this.controller.x;
         const z = m.z ?? this.controller.z;
         this.fx.burst(x, z, 'confetti', 110, 1.6, 0.9);
-        audio.play('pop', { volume: 0.7 });
+        // Pháo kèm toạ độ (sàn nhảy của bàn DJ, máy Nổ Hũ, bếp chùa): tiếng nổ theo vị trí — xa thì nhỏ dần, quá 34 m thì
+        // im (người trong Sòng không nghe pháo của sàn nhảy). Không kèm toạ độ thì pháo nổ quanh chính mình → to như cũ.
+        this.playSpatial('pop', m.x, m.z, 0.7);
         return;
       }
       case 'petals':

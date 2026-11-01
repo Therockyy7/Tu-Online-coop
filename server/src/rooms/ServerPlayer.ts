@@ -39,6 +39,8 @@ export class ServerPlayer {
   lastPunishedAt = 0;
   /** Lần cuối (với tư cách host) phạt người khác. */
   lastPunishAt = 0;
+  /** Lần cuối báo cả phòng "tụt cấp vì đỏ đen" (tối đa 1 tin / CASINO.demoteChatCooldownMs). */
+  lastDemoteChatAt = 0;
   /** Chữ ký đồ đã mở khóa đã gửi cho client (chỉ gửi lại khi đổi). */
   unlockedSig = '';
 

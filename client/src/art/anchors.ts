@@ -1,6 +1,6 @@
 // Vị trí mặc định của các điểm neo (xem AnchorName trong art/api.ts), tính từ dữ liệu map dùng chung.
 // Phần dựng hình map nên dùng các vị trí X/Z này và chỉnh Y cho khớp chiều cao mô hình của mình.
-import type { ColliderDef, MapDef } from '@shared/index';
+import { SONG_BAC, type ColliderDef, type MapDef } from '@shared/index';
 
 export interface AnchorSpec {
   x: number;
@@ -64,6 +64,47 @@ export function defaultAnchors(map: MapDef): Map<string, AnchorSpec> {
     a.set('exchange_kiosk_top', { x: kiosk.x, y: 1.1, z: kiosk.z });
     byTag(map, 'npc_table').forEach((t, i) => a.set(`npc_table_top:npc_table_${i + 1}`, { x: t.x, y: 0.8, z: t.z }));
     a.set('dance_floor_center', { x: 0, y: 0.05, z: 0 });
+    casinoAnchors(a);
   }
   return a;
+}
+
+/**
+ * Neo Sòng Công Đức (xem AnchorName ở art/api.ts), tính thẳng từ SONG_BAC. Ghế/chỗ bài đánh số từ Tây sang Đông;
+ * ry của ghế/nhà cái làm +Z cục bộ hướng ra phía khách.
+ */
+function casinoAnchors(a: Map<string, AnchorSpec>): void {
+  const S = SONG_BAC;
+  const y = S.feltY;
+  a.set('taixiu_table_top', { x: S.taixiu.x, y, z: S.taixiu.z });
+
+  // Xì Dách: nửa elip bán trục w/2 × d, cạnh thẳng phía Bắc (z0), 5 ghế trên cung ở 68% bán kính.
+  const xd = S.xidach;
+  const z0 = xd.z - xd.d / 2;
+  a.set('xidach_table_top', { x: xd.x, y, z: xd.z });
+  a.set('xidach_dealer', { x: xd.x, y, z: z0 + 0.35, ry: 0 });
+  [-60, -30, 0, 30, 60].forEach((deg, i) => {
+    const phi = (deg * Math.PI) / 180;
+    a.set(`xidach_seat:${i + 1}`, { x: xd.x + (xd.w / 2) * 0.68 * Math.sin(phi), y, z: z0 + xd.d * 0.68 * Math.cos(phi), ry: phi });
+  });
+
+  // Bài Cào: khách ở cạnh Bắc (lối giữa), nhà cái ở cạnh Nam.
+  const bc = S.baicao;
+  a.set('baicao_table_top', { x: bc.x, y, z: bc.z });
+  a.set('baicao_dealer', { x: bc.x, y, z: bc.z + 0.5, ry: Math.PI });
+  for (let k = 0; k < 6; k++) a.set(`baicao_seat:${k + 1}`, { x: bc.x + (k - 2.5) * 0.5, y, z: bc.z - bc.d / 2 + 0.38, ry: Math.PI });
+
+  const r = S.race;
+  a.set('race_track', { x: r.startX, y: r.surfaceY, z: r.laneZ0, ry: 0 });
+  a.set('race_board', { x: r.x, y: 3.3, z: S.minZ + 0.05, ry: 0 });
+
+  const sl = S.slots;
+  sl.xs.forEach((x, i) => {
+    const front = sl.z - sl.d / 2;
+    a.set(`slot_reels:slot_machine_${i + 1}`, { x, y: 1.38, z: front - 0.04, ry: Math.PI });
+    a.set(`slot_lever:slot_machine_${i + 1}`, { x: x - sl.w / 2 - 0.06, y: 1.15, z: sl.z - 0.15, ry: Math.PI });
+  });
+
+  const j = S.jackpot;
+  a.set('jackpot_display', { x: j.x, y: 2.7, z: j.z - j.r - 0.05, ry: Math.PI });
 }

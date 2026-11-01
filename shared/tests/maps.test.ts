@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { MOVE } from '@shared/config/balance';
 import { ACTIVITY_IDS, type MapId } from '@shared/ids';
 import {
   MAPS,
+  SONG_BAC,
   STATION_KINDS,
   findStation,
   isBlocked,
@@ -60,6 +62,11 @@ const KIND_ACTIVITY: Record<StationKind, string> = {
   npc_table: 'mixology',
   baucua_table: 'baucua',
   truth_wheel: 'truthwheel',
+  taixiu_table: 'taixiu',
+  xidach_table: 'xidach',
+  baicao_table: 'baicao',
+  slot_machine: 'nohu',
+  race_rail: 'duangua',
 };
 
 const allPass: MoveContext = { canPassGate: () => true };
@@ -188,6 +195,73 @@ describe('dữ liệu map', () => {
     expect(count(MAPS.temple, 'portrait')).toBe(6);
     expect(count(MAPS.bar, 'mix_station')).toBe(4);
     expect(count(MAPS.bar, 'npc_table')).toBe(6);
+  });
+});
+
+describe('Sòng Công Đức — va chạm bàn Xì Dách bán nguyệt', () => {
+  const m = MAPS.bar;
+  const xd = SONG_BAC.xidach;
+  const a = xd.w / 2;
+  const b = xd.d;
+  const z0 = xd.z - xd.d / 2;
+  /** Điểm trên mép cung ở góc tham số `deg` (0 = đỉnh cung phía Nam, ±90 = hai đầu cạnh thẳng) + pháp tuyến ra ngoài. */
+  const arc = (deg: number) => {
+    const f = (deg * Math.PI) / 180;
+    const nx = Math.sin(f) / a;
+    const nz = Math.cos(f) / b;
+    const l = Math.hypot(nx, nz);
+    return { x: xd.x + a * Math.sin(f), z: z0 + b * Math.cos(f), nx: nx / l, nz: nz / l };
+  };
+  /**
+   * Áp sát mép bàn dọc pháp tuyến: khoảng hở giữa thân người chơi (MOVE.radius) và mép bàn ở chỗ gần nhất đứng được
+   * (dương = còn hở / tường vô hình, âm = thân lấn vào mép bàn).
+   */
+  const gap = (p: { x: number; z: number }, nx: number, nz: number): number => {
+    for (let t = 0; t <= 2; t += 0.005) if (!isBlocked({ x: p.x + nx * t, z: p.z + nz * t }, m, allPass)) return t - MOVE.radius;
+    return Infinity;
+  };
+
+  it('đứng sát được mép cong ở mọi hướng (gồm 5 ô ghế ±60° / ±30° / 0°): hở ≤ 0,15 m, lấn ≤ 0,1 m', () => {
+    for (let deg = -90; deg <= 90; deg += 5) {
+      const p = arc(deg);
+      const g = gap(p, p.nx, p.nz);
+      expect(g, `góc ${deg}°`).toBeLessThanOrEqual(0.15);
+      expect(g, `góc ${deg}°`).toBeGreaterThanOrEqual(-0.1);
+    }
+  });
+
+  it('hai góc phía Nam của hộp bao cũ không còn là tường vô hình; cạnh thẳng phía nhà cái không lố ra sau', () => {
+    for (const sx of [-1, 1]) expect(isBlocked({ x: xd.x + sx * a, z: z0 + b }, m, allPass), `góc ${sx}`).toBe(false);
+    for (let x = xd.x - a + 0.1; x <= xd.x + a - 0.1; x += 0.1) {
+      const g = gap({ x, z: z0 }, 0, -1);
+      expect(g, `x ${x.toFixed(1)}`).toBeLessThanOrEqual(0.02);
+      expect(g, `x ${x.toFixed(1)}`).toBeGreaterThanOrEqual(-0.02);
+    }
+  });
+
+  it('không đi xuyên bàn: mọi điểm trong lòng bàn đều bị chặn; đi thẳng vào bàn thì dừng / trượt vòng quanh mép', () => {
+    for (let u = -a + 0.05; u <= a - 0.05; u += 0.1) {
+      const vMax = b * Math.sqrt(1 - (u / a) ** 2);
+      for (let v = 0.02; v < vMax; v += 0.1) expect(isBlocked({ x: xd.x + u, z: z0 + v }, m, allPass), `(${u}, ${v})`).toBe(true);
+    }
+    expect(resolveMove({ x: xd.x, z: z0 + b + 1.5 }, { x: xd.x, z: z0 - 1.5 }, m, allPass).z).toBeGreaterThan(z0 + b);
+    /** Khoảng cách từ tâm người chơi tới bàn (0 nếu ở trong), lấy mẫu dày mép cung + cạnh thẳng. */
+    const distToTable = (p: { x: number; z: number }): number => {
+      const u = p.x - xd.x;
+      const v = p.z - z0;
+      if (v >= 0 && (u / a) ** 2 + (v / b) ** 2 <= 1) return 0;
+      let best = Infinity;
+      for (let deg = -90; deg <= 90; deg += 0.5) best = Math.min(best, Math.hypot(p.x - arc(deg).x, p.z - arc(deg).z));
+      for (let x = xd.x - a; x <= xd.x + a; x += 0.02) best = Math.min(best, Math.hypot(p.x - x, p.z - z0));
+      return best;
+    };
+    // Đi từng bước nhỏ (như từng khung hình) từ Tây sang Đông ngang giữa bàn: thân không lấn vào mép quá 0,1 m.
+    let p = { x: xd.x - a - 1.5, z: z0 + 0.8 };
+    for (let i = 0; i < 70; i++) {
+      p = resolveMove(p, { x: p.x + 0.1, z: p.z }, m, allPass);
+      expect(distToTable(p), `bước ${i}`).toBeGreaterThan(MOVE.radius - 0.1);
+    }
+    expect(m.colliders.filter((c) => c.tag === 'xidach_table').length).toBeGreaterThan(1);
   });
 });
 

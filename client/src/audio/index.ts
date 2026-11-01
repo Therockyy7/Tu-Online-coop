@@ -1,16 +1,26 @@
 // Bộ máy âm thanh Web Audio: kênh tổng/nhạc/hiệu ứng, vang phòng, lập lịch nhạc theo bước (bài có nhịp canh
 // đúng giờ server để cả phòng nghe cùng phách), hiệu ứng âm thanh tổng hợp, nhạc thu sẵn phát trực tuyến (nhạc kinh
-// ở Đại Pháp Đường — nhạc tổng hợp nhỏ lại nhường chỗ). Chỉ bật sau cú bấm đầu tiên.
+// ở Đại Pháp Đường — nhạc tổng hợp nhỏ lại nhường chỗ; nhạc DJ ở Bar bám giờ server liên tục), phổ nhạc cho tường LED.
+// Chỉ bật sau cú bấm đầu tiên.
 import type { SfxId, TrackId } from '@shared/index';
 import type { AudioApi, AudioChannel, PlayOptions, RecordedOptions } from './api';
 import { TRACKS, type MusicTrack } from './music';
 import { SFX, bigBell } from './sfx';
 import { impulseResponse, type Voice } from './synth';
 
+/**
+ * Tên cũ của tùy chọn nhạc thu sẵn có `follow` (bám giờ server liên tục — nhạc DJ: cả quán nghe cùng một phách, Thi
+ * nhảy chấm điểm theo đúng phách đó). `follow` đã vào hợp đồng RecordedOptions (api.ts); giữ tên cho mã đang dùng.
+ */
+export type FollowRecordedOptions = RecordedOptions;
+
 interface Playing {
   id: TrackId;
   track: MusicTrack;
+  /** To dần khi vào bài / nhỏ dần khi thay bài. */
   gain: GainNode;
+  /** Mức to riêng sau `gain`: bài có nhịp theo setBeatLevel (DJ nhỏ lại trong Sòng), nhạc nền luôn 1. */
+  level: GainNode;
   voice: Voice;
   bpm: number;
   /** Bài có nhịp: giờ server của phách 0. Không có = nhạc nền tự do. */
@@ -41,6 +51,10 @@ interface Recorded {
   dead: boolean;
   pauseTimer: ReturnType<typeof setTimeout> | null;
   retryTimer: ReturnType<typeof setTimeout> | null;
+  /** Nhạc bám giờ server chưa tới giờ bắt đầu: hẹn phát đúng lúc. */
+  startTimer: ReturnType<typeof setTimeout> | null;
+  /** Lần tua thẳng gần nhất để bám giờ (performance.now, ms). */
+  seekAt: number;
 }
 
 const LOOKAHEAD = 0.14;
@@ -59,6 +73,33 @@ const REC_RETRY_MS = 8000;
 const REC_RETRIES = 3;
 /** Hỏi thời lượng quá lâu thì thôi (trả 0). */
 const PROBE_TIMEOUT_MS = 15_000;
+/**
+ * Nhạc bám giờ server: kiểm lệch mỗi FOLLOW_MS; lệch quá FOLLOW_START giây thì nhích tốc độ (tối đa ±FOLLOW_MAX, tỉ lệ
+ * FOLLOW_GAIN theo độ lệch) tới khi còn dưới FOLLOW_STOP; lệch quá FOLLOW_SEEK giây thì tua thẳng (cách nhau ≥
+ * FOLLOW_SEEK_GAP_MS — mạng chậm đừng tua liên hồi). Vào bài thì to lên nhanh (hằng thời gian FOLLOW_FADE).
+ */
+const FOLLOW_MS = 200;
+const FOLLOW_START = 0.03;
+const FOLLOW_STOP = 0.008;
+const FOLLOW_GAIN = 0.8;
+const FOLLOW_MAX = 0.04;
+const FOLLOW_SEEK = 0.5;
+const FOLLOW_SEEK_GAP_MS = 3000;
+/** Lệch quá FOLLOW_JUMP giây mà chỗ cần tới đã tải sẵn (tua trong bộ đệm gần như tức thì) thì tua luôn (cách ≥ 1 s). */
+const FOLLOW_JUMP = 0.12;
+const FOLLOW_JUMP_GAP_MS = 1000;
+const FOLLOW_FADE = 0.06;
+/** Trễ đầu ra quá ngần này (giây) coi như số hỏng. */
+const MAX_OUT_LATENCY = 0.3;
+/**
+ * Phổ nhạc: FFT 2048 (dải trầm 40–100 Hz mới tách được cột), dải log BAND_LO_HZ – BAND_HI_HZ, bù nghiêng BAND_TILT mỗi
+ * quãng tám quanh 1 kHz (nhạc dồn năng lượng ở dải trầm — không bù thì cột cao tần nằm im), dưới BAND_FLOOR coi là lặng.
+ */
+const FFT_SIZE = 2048;
+const BAND_LO_HZ = 40;
+const BAND_HI_HZ = 12_000;
+const BAND_TILT = 0.045;
+const BAND_FLOOR = 0.06;
 
 /**
  * Thời lượng (giây) một file nhạc: thẻ audio tạm chỉ tải metadata, xong thì bỏ nguồn (hủy tải). Luồng chưa biết độ dài
@@ -127,8 +168,18 @@ export function createAudio(): AudioApi {
   let rec: Recorded | null = null;
   /** Mức nhạc tổng hợp đang nhắm tới (1 = không nhường). */
   let duck = 1;
+  /** Mức to bài có nhịp (setBeatLevel) — nhớ cả khi chưa mở khóa; stopBeatTrack trả về 1. */
+  let beatLevel = 1;
   /** Thời lượng theo url: đang hỏi hoặc đã biết (hỏi hỏng thì xóa để lần sau hỏi lại). */
   const durations = new Map<string, Promise<number>>();
+  /** Kiểm lệch nhạc bám giờ server (chỉ chạy khi bài đang mở cần bám). */
+  let followTimer: ReturnType<typeof setInterval> | null = null;
+  /** Phổ nhạc: nhánh đo sau kênh nhạc + bộ đệm / bảng chia dải dựng sẵn (đổi số dải mới dựng lại). */
+  let analyser: AnalyserNode | null = null;
+  let bins: Uint8Array<ArrayBuffer> | null = null;
+  let bandLo = new Int16Array(0);
+  let bandHi = new Int16Array(0);
+  let bandTilt = new Float32Array(0);
 
   const applyVolumes = () => {
     if (!ctx) return;
@@ -150,6 +201,13 @@ export function createAudio(): AudioApi {
     master.connect(comp);
     musicBus = c.createGain();
     musicBus.connect(master);
+    // Phổ nhạc cho tường LED: nhánh rẽ sau thanh âm lượng nhạc (không nối ra loa — trình duyệt vẫn tự kéo dữ liệu).
+    analyser = c.createAnalyser();
+    analyser.fftSize = FFT_SIZE;
+    analyser.smoothingTimeConstant = 0.7;
+    analyser.minDecibels = -85;
+    analyser.maxDecibels = -25;
+    musicBus.connect(analyser);
     sfxBus = c.createGain();
     sfxBus.connect(master);
     const convolver = c.createConvolver();
@@ -220,10 +278,14 @@ export function createAudio(): AudioApi {
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.linearRampToValueAtTime(1, now + FADE);
-    gain.connect(synthBus);
+    // Mức to riêng nằm sau tầng to dần / nhỏ dần (hai việc không giành nhau một tham số) và trước cả phần khô lẫn vang.
+    const level = ctx.createGain();
+    level.gain.value = startServer !== null ? beatLevel : 1;
+    gain.connect(level);
+    level.connect(synthBus);
     const send = ctx.createGain();
     send.gain.value = id === 'temple_ambience' || id === 'chant_lofi' ? 0.35 : 0.08;
-    gain.connect(send);
+    level.connect(send);
     send.connect(synthVerb);
     let nextStep = 0;
     if (startServer !== null) {
@@ -234,6 +296,7 @@ export function createAudio(): AudioApi {
       id,
       track: TRACKS[id],
       gain,
+      level,
       voice: { ctx, out: gain },
       bpm,
       startServer,
@@ -259,6 +322,7 @@ export function createAudio(): AudioApi {
       const p = playing[i]!;
       if (p.fadingUntil !== null && audioNow > p.fadingUntil) {
         p.gain.disconnect();
+        p.level.disconnect();
         playing.splice(i, 1);
         continue;
       }
@@ -323,6 +387,115 @@ export function createAudio(): AudioApi {
     }
   }
 
+  /** Giây `t` của bài đã nằm trong phần tải sẵn (tua tới đó không phải chờ mạng). */
+  function isBuffered(el: HTMLMediaElement, t: number): boolean {
+    const b = el.buffered;
+    for (let i = 0; i < b.length; i++) if (t >= b.start(i) && t < b.end(i) - 0.25) return true;
+    return false;
+  }
+
+  /** Trễ từ đồ thị âm thanh tới loa (giây): nhạc bám giờ server phát sớm chừng ấy để tiếng nghe thấy đúng giờ. */
+  function outLatency(): number {
+    if (!ctx) return 0;
+    const out = Number.isFinite(ctx.outputLatency) ? ctx.outputLatency : 0;
+    const base = Number.isFinite(ctx.baseLatency) ? ctx.baseLatency : 0;
+    return Math.max(0, Math.min(MAX_OUT_LATENCY, out + base));
+  }
+
+  /** Giây bài bám giờ server phải đang phát lúc này (đã bù trễ đầu ra; âm = chưa tới giờ); null = không tính được. */
+  function followTarget(r: Recorded): number | null {
+    const startAt = r.opts.startAt;
+    if (!startAt) return null;
+    let t: number;
+    try {
+      t = startAt(r.el.duration);
+    } catch (err) {
+      console.warn('[audio] lỗi startAt', err);
+      return null;
+    }
+    return Number.isFinite(t) ? t + outLatency() : null;
+  }
+
+  /**
+   * Phát bài bám giờ server từ im lặng: chưa có metadata thì chờ ('loadedmetadata' gọi lại); chưa tới giờ thì đứng ở
+   * giây 0, hẹn phát đúng lúc; tới giờ thì tua đúng giây, play() rồi to lên nhanh. Phần lệch còn lại (trễ khởi động,
+   * trễ tua) do followTick nắn dần.
+   */
+  function startFollowing(r: Recorded): void {
+    if (!ctx || r.dead || r.failed || r.level <= 0) return;
+    const el = r.el;
+    if (r.startTimer) {
+      clearTimeout(r.startTimer);
+      r.startTimer = null;
+    }
+    if (el.readyState < HTMLMediaElement.HAVE_METADATA) {
+      r.needSeek = true;
+      return;
+    }
+    r.needSeek = false;
+    const t = followTarget(r);
+    if (t === null) return;
+    const d = el.duration;
+    try {
+      if (t < 0) {
+        // Chưa tới giờ bắt đầu: đứng chờ ở giây 0 (đã tải sẵn), hẹn vào đúng lúc.
+        if (!el.paused) el.pause();
+        if (el.currentTime !== 0) el.currentTime = 0;
+        r.startTimer = setTimeout(() => {
+          r.startTimer = null;
+          startFollowing(r);
+        }, -t * 1000);
+        return;
+      }
+      if (Number.isFinite(d) && d > 0 && t >= d - REC_TAIL) return; // bài đã hết theo giờ server
+      if (Math.abs(el.currentTime - t) > 0.02) el.currentTime = t;
+      el.playbackRate = 1;
+      void el.play().catch(() => {
+        // Bị chặn (autoplay) — hoặc bị ngắt vì vừa tháo bài / tạm dừng chờ giờ trước khi kịp phát thì thôi.
+        if (r.dead || r.failed || r.level <= 0 || !el.paused || r.startTimer) return;
+        r.blocked = true;
+        updateDuck();
+      });
+    } catch {
+      r.blocked = true;
+    }
+    r.gain.gain.setTargetAtTime(r.level, ctx.currentTime, FOLLOW_FADE);
+    updateDuck();
+  }
+
+  /** Kiểm lệch bài bám giờ server đang phát: lệch nhỏ → nhích tốc độ phát; lệch lớn → tua thẳng. */
+  function followTick(): void {
+    const r = rec;
+    if (!ctx || ctx.state !== 'running' || !r || !r.opts.follow) return;
+    if (r.dead || r.failed || r.blocked || r.needSeek || r.startTimer || r.level <= 0) return;
+    const el = r.el;
+    if (el.paused || el.seeking || el.ended || el.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) return;
+    const t = followTarget(r);
+    if (t === null) return;
+    const d = el.duration;
+    if (Number.isFinite(d) && d > 0 && t >= d - REC_TAIL) return;
+    if (t < 0) return startFollowing(r); // mốc bắt đầu bị dời về sau: đứng chờ lại
+    const drift = el.currentTime - t;
+    const ad = Math.abs(drift);
+    const since = performance.now() - r.seekAt;
+    try {
+      if (
+        (ad > FOLLOW_SEEK && since > FOLLOW_SEEK_GAP_MS) ||
+        (ad > FOLLOW_JUMP && since > FOLLOW_JUMP_GAP_MS && isBuffered(el, t))
+      ) {
+        r.seekAt = performance.now();
+        el.currentTime = t;
+        el.playbackRate = 1;
+        return;
+      }
+      const tol = el.playbackRate === 1 ? FOLLOW_START : FOLLOW_STOP;
+      const rate = Math.abs(drift) < tol ? 1 : Math.max(1 - FOLLOW_MAX, Math.min(1 + FOLLOW_MAX, 1 - drift * FOLLOW_GAIN));
+      if (el.playbackRate !== rate) el.playbackRate = rate;
+    } catch {
+      // Luồng không cho tua / đổi tốc độ: thôi.
+    }
+  }
+
   /**
    * Phát (lại) bài từ im lặng: tua tới giây canh giờ server, play() rồi to dần. Chưa có metadata thì vẫn play() ngay —
    * để trình duyệt tải, và còn nằm trong cú bấm nếu gọi từ unlock() — nhưng giữ im tới 'loadedmetadata' mới tua.
@@ -334,6 +507,12 @@ export function createAudio(): AudioApi {
     r.blocked = false;
     r.gain.gain.cancelScheduledValues(now);
     r.gain.gain.setValueAtTime(0, now);
+    if (r.opts.follow) {
+      el.preload = 'auto';
+      startFollowing(r);
+      updateDuck();
+      return;
+    }
     try {
       el.preload = 'auto';
       r.needSeek = el.readyState < HTMLMediaElement.HAVE_METADATA;
@@ -408,8 +587,10 @@ export function createAudio(): AudioApi {
     r.dead = true;
     if (r.pauseTimer) clearTimeout(r.pauseTimer);
     if (r.retryTimer) clearTimeout(r.retryTimer);
+    if (r.startTimer) clearTimeout(r.startTimer);
     r.pauseTimer = null;
     r.retryTimer = null;
+    r.startTimer = null;
     if (ctx && ctx.state === 'running' && !r.el.paused && !r.needSeek && !r.failed) {
       r.gain.gain.setTargetAtTime(0, ctx.currentTime, REC_TC);
       setTimeout(() => destroyRecorded(r), REC_FADE_MS);
@@ -459,9 +640,12 @@ export function createAudio(): AudioApi {
         dead: false,
         pauseTimer: null,
         retryTimer: null,
+        startTimer: null,
+        seekAt: -Infinity,
       };
       el.addEventListener('loadedmetadata', () => {
         if (r.dead || !r.needSeek) return;
+        if (r.opts.follow) return startFollowing(r);
         r.needSeek = false;
         // Tua cả khi mức to vừa về 0: lên lại trước lúc tạm dừng thì chỉ to lên, không tua nữa — phải đúng giây sẵn.
         if (!el.paused) seekToStart(r);
@@ -505,12 +689,49 @@ export function createAudio(): AudioApi {
       }
     }
     updateDuck();
+    // Bài cần bám giờ server: kiểm lệch đều đặn; không còn bài như thế thì thôi.
+    const following = !!rec?.opts.follow;
+    if (following && !followTimer) followTimer = setInterval(followTick, FOLLOW_MS);
+    else if (!following && followTimer) {
+      clearInterval(followTimer);
+      followTimer = null;
+    }
   }
 
   /** AudioContext đang chạy (unlock): áp yêu cầu gần nhất; play() từng bị chặn thì thử lại ngay trong cú bấm/phím. */
   function resumeRecorded(): void {
     syncRecorded();
     if (rec && rec.blocked && rec.level > 0) startRecorded(rec);
+  }
+
+  // ──────────── Phổ nhạc (tường LED sau bàn DJ) ────────────
+
+  /** Kênh nhạc đang có tiếng: bài thu sẵn đang phát, hoặc nhạc tổng hợp chưa tắt dần; thanh âm lượng không về 0. */
+  function musicAudible(): boolean {
+    if (volumes.music <= 0 || volumes.master <= 0) return false;
+    const r = rec;
+    if (r && !r.dead && !r.failed && !r.blocked && r.level > 0 && !r.el.paused) return true;
+    for (let i = 0; i < playing.length; i++) if (playing[i]!.fadingUntil === null) return true;
+    return false;
+  }
+
+  /** Bảng chia `n` dải theo thang log BAND_LO_HZ – BAND_HI_HZ ra các ô FFT (mỗi dải ≥ 1 ô) + độ bù nghiêng từng dải. */
+  function layoutBands(n: number, a: AnalyserNode): void {
+    bandLo = new Int16Array(n);
+    bandHi = new Int16Array(n);
+    bandTilt = new Float32Array(n);
+    const binHz = a.context.sampleRate / a.fftSize;
+    const last = a.frequencyBinCount - 1;
+    const ratio = BAND_HI_HZ / BAND_LO_HZ;
+    for (let i = 0; i < n; i++) {
+      const f0 = BAND_LO_HZ * Math.pow(ratio, i / n);
+      const f1 = BAND_LO_HZ * Math.pow(ratio, (i + 1) / n);
+      // Ô FFT có tần số giữa trong [f0, f1); dải hẹp hơn một ô (dải trầm) thì lấy hai ô kề — dải kề nhau vẫn khác nhau.
+      const lo = Math.min(last, Math.max(1, Math.floor(f0 / binHz)));
+      bandLo[i] = lo;
+      bandHi[i] = Math.min(last, Math.max(lo, Math.ceil(f1 / binHz) - 1));
+      bandTilt[i] = BAND_TILT * Math.log2(Math.sqrt(f0 * f1) / 1000);
+    }
   }
 
   return {
@@ -565,14 +786,24 @@ export function createAudio(): AudioApi {
       refreshMusic();
     },
     stopBeatTrack() {
+      // Bài đang nhỏ dần giữ mức to riêng của nó; bài có nhịp bật sau bắt đầu lại ở mức 1.
+      beatLevel = 1;
       if (!beat) return;
       beat = null;
       refreshMusic();
     },
-    djDrop() {
+    setBeatLevel(level) {
+      beatLevel = Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 1;
       if (!ctx) return;
-      playAtAudio('drop', ctx.currentTime + 0.01, { volume: 1 });
-      playAtAudio('airhorn', ctx.currentTime + 0.05, { volume: 0.5 });
+      for (const p of playing) {
+        if (p.startServer !== null && p.fadingUntil === null) p.level.gain.setTargetAtTime(beatLevel, ctx.currentTime, REC_TC);
+      }
+    },
+    djDrop(level = 1) {
+      if (!ctx) return;
+      const k = Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 1;
+      playAtAudio('drop', ctx.currentTime + 0.01, { volume: k });
+      playAtAudio('airhorn', ctx.currentTime + 0.05, { volume: 0.5 * k });
     },
     setRecorded(url, level, opts = {}) {
       const lv = Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0;
@@ -589,6 +820,23 @@ export function createAudio(): AudioApi {
         durations.set(url, p);
       }
       return p;
+    },
+    musicBands(out) {
+      const a = analyser;
+      if (!ctx || !a || ctx.state !== 'running' || !musicAudible()) {
+        out.fill(0);
+        return false;
+      }
+      if (!bins) bins = new Uint8Array(a.frequencyBinCount);
+      if (bandLo.length !== out.length) layoutBands(out.length, a);
+      a.getByteFrequencyData(bins);
+      for (let i = 0; i < out.length; i++) {
+        let m = 0;
+        for (let k = bandLo[i]!; k <= bandHi[i]!; k++) if (bins[k]! > m) m = bins[k]!;
+        const v = m / 255 + bandTilt[i]!;
+        out[i] = v <= BAND_FLOOR ? 0 : Math.min(1, (v - BAND_FLOOR) / (1 - BAND_FLOOR));
+      }
+      return true;
     },
     setVolume(channel, value) {
       volumes[channel] = Math.max(0, Math.min(1, value));

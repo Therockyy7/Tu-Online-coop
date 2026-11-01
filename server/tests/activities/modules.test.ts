@@ -1,6 +1,6 @@
 // Kịch bản chính của các module hoạt động phía server, chạy với FakeActivityContext (đồng hồ + hẹn giờ giả).
 import { describe, expect, it } from 'vitest';
-import { BAUCUA, BELL, CEREMONY, CHANT, COOK, DANCE, EXCHANGE, MIXOLOGY, SWEEP, WATER, findStation } from '@shared/index';
+import { BAUCUA, BELL, CEREMONY, CHANT, COOK, DANCE, DJ, EXCHANGE, MIXOLOGY, SWEEP, WATER, findStation } from '@shared/index';
 import type { BauCuaState } from '@shared/activities/bar';
 import { ceremonyLayout, ceremonySlots, type CeremonyPublicState } from '@shared/activities/ceremony';
 import type { CookPublicState } from '@shared/activities/cook';
@@ -21,19 +21,31 @@ describe('Thi nhảy', () => {
   it('DJ mở vòng, người chơi tham gia, ô nhịp không gửi bị tính trượt, cuối vòng thưởng Xu và người nhất làm DJ', () => {
     const { ctx, instance } = mountActivity(danceModule);
     ctx.mapId = 'bar';
-    ctx.shared.set('dj_track', 0);
-    ctx.shared.set('dj_started_at', ctx.time);
+    // Mốc nhịp bàn DJ ghi vào bộ đếm dùng chung: nhịp + một phách mạnh của bài đang phát.
+    const beat0 = ctx.time + 123;
+    ctx.shared.set('dj_bpm', 138.001);
+    ctx.shared.set('dj_beat0', beat0);
+    ctx.shared.set('dj_playing', 1);
     ctx.addPlayer({ pid: 'dj', isHost: true });
     ctx.addPlayer({ pid: 'b' });
     const floor = ctx.station('dance_floor');
     instance.onInteract!(ctx.view('dj'), floor);
+    // Sảnh mở → báo bàn DJ: tới mốc này không được dừng / đổi bài.
+    const lobbyEndsAt = ctx.lastState<DancePublicState>().lobbyEndsAt;
+    expect(ctx.shared.get('dance_lobby_until')).toBe(lobbyEndsAt);
     instance.onInteract!(ctx.view('dj'), floor);
     instance.onInteract!(ctx.view('b'), floor);
     expect(ctx.lastState<DancePublicState>().players).toHaveLength(2);
     ctx.advance(DANCE.lobbyMs + 100, instance);
     const st = ctx.lastState<DancePublicState>();
     expect(st.phase).toBe('playing');
+    expect(st.bpm).toBe(138.001);
     const measureMs = (60_000 / st.bpm) * 4;
+    // Vòng bắt đầu đúng ranh ô nhịp của bài đang phát, chừa ≥ 1,5 giây.
+    const k = (st.startAt - beat0) / measureMs;
+    expect(Math.abs(k - Math.round(k))).toBeLessThan(1e-6);
+    expect(st.startAt).toBeGreaterThanOrEqual(lobbyEndsAt + 1500);
+    expect(ctx.shared.get('dance_until')).toBeCloseTo(st.startAt + DANCE.measures * measureMs + 500, 6);
     const beat4 = st.startAt + DANCE.introMeasures * measureMs + measureMs * 0.75;
     ctx.time = Math.max(ctx.time, Math.ceil(beat4) + 10);
     instance.onAction!(ctx.view('dj'), 'measure', { i: DANCE.introMeasures, ok: true, t: beat4 });
@@ -45,6 +57,42 @@ describe('Thi nhảy', () => {
     expect(ctx.playersById.get('b')!.xu).toBe(DANCE.rewards[1]);
     expect(ctx.playersById.get('b')!.tapNiem).toBe(DANCE.tapNiem);
     expect(ctx.dj).toBe('dj');
+  });
+
+  it('chưa có mốc nhịp DJ → lùi về nhịp bài tổng hợp đầu, tính từ lúc vào vòng', () => {
+    const { ctx, instance } = mountActivity(danceModule);
+    ctx.addPlayer({ pid: 'dj', isHost: true });
+    instance.onInteract!(ctx.view('dj'), ctx.station('dance_floor'));
+    ctx.advance(DANCE.lobbyMs, instance);
+    const st = ctx.lastState<DancePublicState>();
+    expect(st.phase).toBe('playing');
+    expect(st.bpm).toBe(DJ.tracks[0]!.bpm);
+    expect(Number.isFinite(st.startAt)).toBe(true);
+    expect(st.startAt).toBeGreaterThanOrEqual(ctx.time + 1500);
+  });
+
+  it('bài DJ đổi pha lưới giữa vòng (bài ghép nhiều đoạn) → mốc vòng dời theo phần lẻ phách, không nhảy ô nhịp', () => {
+    const { ctx, instance } = mountActivity(danceModule);
+    const bpm = 127.993;
+    const beat0 = ctx.time + 400;
+    ctx.shared.set('dj_bpm', bpm);
+    ctx.shared.set('dj_beat0', beat0);
+    ctx.shared.set('dj_playing', 1);
+    ctx.addPlayer({ pid: 'dj', isHost: true });
+    instance.onInteract!(ctx.view('dj'), ctx.station('dance_floor'));
+    ctx.advance(DANCE.lobbyMs + 100, instance);
+    const st = ctx.lastState<DancePublicState>();
+    const beat = 60_000 / bpm;
+    // Đoạn mới sớm 98 ms so với lưới cũ (cách 149 phách).
+    ctx.shared.set('dj_beat0', beat0 + 149 * beat - 98);
+    ctx.advance(100, instance);
+    const moved = ctx.lastState<DancePublicState>();
+    expect(moved.startAt).toBeCloseTo(st.startAt - 98, 6);
+    expect(ctx.shared.get('dance_until')).toBeCloseTo(moved.startAt + DANCE.measures * beat * 4 + 500, 6);
+    // Phát lại bài đúng lưới ô nhịp (lệch tròn ô nhịp) → giữ nguyên.
+    ctx.shared.set('dj_beat0', beat0 + 149 * beat - 98 + 12 * 4 * beat);
+    ctx.advance(100, instance);
+    expect(ctx.lastState<DancePublicState>().startAt).toBeCloseTo(moved.startAt, 6);
   });
 });
 

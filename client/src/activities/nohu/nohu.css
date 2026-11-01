@@ -1,0 +1,104 @@
+/* Máy Nổ Hũ — bảng điều khiển đáy màn hình, bổ sung cho casino.css (tiền tố nh-): Hũ Công Đức, nút QUAY, kết quả. */
+.nh-panel .panel-body {
+  padding-top: 6px;
+}
+.nh-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.nh-top .cs-wallet {
+  margin-bottom: 0;
+}
+.nh-pot {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #6e0f14, #b8231c);
+  box-shadow: inset 0 0 0 2px #e8c060;
+  color: #ffe39a;
+  font: 800 15px var(--font-title);
+  white-space: nowrap;
+  text-align: center;
+}
+/* Dòng nhỏ dưới số Hũ: mức cược đang chọn nổ hũ ăn bao nhiêu phần hũ. */
+.nh-pot-share {
+  display: block;
+  font: 700 11px var(--font-body);
+  color: #ffd98a;
+}
+.nh-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 8px;
+}
+.nh-row .cs-chips {
+  margin: 0;
+}
+.nh-spin {
+  flex: 1;
+  min-width: 150px;
+  background: linear-gradient(180deg, #ff6a4a, #c8211b);
+  box-shadow: 0 4px 0 #6e0f0a;
+}
+.nh-spin.ready {
+  animation: nh-ready 1.2s ease-in-out infinite;
+}
+.nh-leave {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  font-size: 15px;
+}
+@keyframes nh-ready {
+  50% {
+    box-shadow: 0 4px 0 #6e0f0a, 0 0 0 4px rgba(255, 209, 102, 0.75);
+  }
+}
+.nh-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 6px 12px;
+  border-radius: 14px;
+  border: 2px solid var(--line);
+  background: #f4efe3;
+  font: 800 15px var(--font-title);
+  color: var(--ink-soft);
+}
+.nh-result.win {
+  background: #e3f7e6;
+  border-color: #74cf86;
+  color: #1f6a3a;
+}
+.nh-result.lose {
+  background: #fde5e2;
+  border-color: #e98c80;
+  color: #a5231b;
+}
+.nh-result.jackpot {
+  background: linear-gradient(135deg, #fff3c4, #ffd166);
+  border-color: #e8a317;
+  color: #7a3d00;
+  animation: nh-jackpot 0.45s ease-in-out infinite alternate;
+}
+@keyframes nh-jackpot {
+  to {
+    transform: scale(1.03);
+    box-shadow: 0 0 18px rgba(255, 193, 7, 0.85);
+  }
+}
+.nh-icons {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.nh-icons img {
+  width: 48px;
+  height: 36px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(120, 90, 40, 0.55);
+}

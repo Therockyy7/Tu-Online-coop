@@ -67,4 +67,4 @@ export function pickStation(
 export * from './types';
 export * from './collision';
 export { TEMPLE_MAP, TANG_DOAN, PHAP_DUONG } from './temple';
-export { BAR_MAP } from './bar';
+export { BAR_MAP, SONG_BAC } from './bar';

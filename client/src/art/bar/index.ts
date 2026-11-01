@@ -1,12 +1,16 @@
 // Map Quán Bar "Niết Bàn Club": sàn LED 8×6 nháy theo nhịp, DJ booth + loa nảy + tường LED, quầy bar + kệ rượu
 // phát sáng, khu VIP dây nhung, vòng quay sự thật, bàn Bầu Cua, quầy đổi Đức, cửa Hồi Sơn, giàn đèn quét,
-// quả cầu disco, khách NPC nhún nhảy. Điều khiển: onBeat / drop / setLightTheme.
+// quả cầu disco, khách NPC nhún nhảy; tường Đông chừa cửa thông sang phòng Sòng Công Đức (casino.ts). Điều khiển:
+// onBeat / drop / setLightTheme, setSpectrum (tường LED theo phổ nhạc) / setMusicPlaying / setNowPlaying (chữ chạy
+// trên bàn DJ) / strobe (đèn chớp) / smoke (khói CO2).
 import * as THREE from 'three';
-import { createRng, type ColliderDef, type MapDef } from '@shared/index';
+import { SONG_BAC, createRng, type ColliderDef, type MapDef } from '@shared/index';
 import { defaultAnchors } from '../anchors';
 import type { WorldBuilder, WorldHandles } from '../api';
 import { createAvatar, npcLook } from '../avatar';
 import { kit as defaultKit } from '../kit';
+import { buildCasino } from './casino';
+import { WEST_LINING, glowCanvasMat, neonText, worldBox } from './casinoKit';
 
 type Theme = 'neon' | 'gold' | 'ocean' | 'fire';
 const THEMES: Record<Theme, string[]> = {
@@ -95,7 +99,6 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
     [W, 0.6, 0, -D / 2],
     [W, 0.6, 0, D / 2],
     [0.6, D, -W / 2, 0],
-    [0.6, D, W / 2, 0],
   ] as const) {
     const len = Math.max(w, d);
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), wallMat(len));
@@ -103,6 +106,36 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
     m.receiveShadow = true;
     dyn.add(m);
   }
+  // Tường Đông chừa cửa thông sang Sòng Công Đức: 2 đoạn + lanh tô. UV theo mét (gạch 4 × 2 m như các tường khác)
+  // nên vân gạch liền qua các đoạn; khung cửa, biển neon, biển "Cờ bạc là bác thằng bần" do casinoShell dựng. Gạch chỉ
+  // phủ tới x = W/2 (mặt va chạm phía Sòng, SONG_BAC.minX): ván ốp Sòng nằm sát đó (casinoKit WEST_FACE) — người chơi /
+  // camera góc thứ ba trong Sòng không lấn vào hay lùi ra sau mặt ván.
+  const sbDoor = SONG_BAC.door;
+  const eastTex = brick.clone();
+  eastTex.needsUpdate = true;
+  const eastMat = new THREE.MeshStandardMaterial({ map: eastTex, roughness: 0.9 });
+  for (const [y0, z0, z1] of [
+    [0, -D / 2, sbDoor.z0],
+    [0, sbDoor.z1, D / 2],
+    [sbDoor.height, sbDoor.z0, sbDoor.z1],
+  ] as const) {
+    const m = new THREE.Mesh(worldBox(W / 2 - 0.3, W / 2, y0, H, z0, z1, 4, 2), eastMat);
+    m.receiveShadow = true;
+    dyn.add(m);
+  }
+  // Tường Đông che nhãn tên / chữ bay (HTML luôn vẽ đè canvas): đoạn nhìn camera → chủ nhãn cắt mặt gạch phía Bar hoặc
+  // mặt ván ốp phía Sòng ở ngoài lòng cửa thông (trừ má cửa ốp gỗ 6 cm) là bị che — cả hai chiều. Lòng cửa là đường hầm
+  // thẳng nên chỉ cần xét hai mặt; hai đầu đoạn luôn nằm trong Bar ∪ Sòng nên chỗ cắt luôn nằm trên bề dài tường.
+  const occZ0 = sbDoor.z0 + 0.06;
+  const occZ1 = sbDoor.z1 - 0.06;
+  /** Đoạn (ax, az) → (bx, bz) cắt mặt phẳng x = xf ở ngoài lòng cửa. */
+  const cutsWall = (xf: number, ax: number, az: number, bx: number, bz: number): boolean => {
+    if ((ax - xf) * (bx - xf) >= 0) return false;
+    const z = az + ((bz - az) * (xf - ax)) / (bx - ax);
+    return z < occZ0 || z > occZ1;
+  };
+  const labelOccluded = (ax: number, az: number, bx: number, bz: number): boolean =>
+    cutsWall(W / 2 - 0.3, ax, az, bx, bz) || cutsWall(WEST_LINING, ax, az, bx, bz);
   const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(W, D).rotateX(Math.PI / 2), mat('#0f0b18', { roughness: 1 }));
   ceiling.position.y = H;
   dyn.add(ceiling);
@@ -112,15 +145,21 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
   for (let z = -12; z <= 12; z += 6) truss.add(mesh(geo.box(W - 2, 0.22, 0.22), metal, { y: H - 0.5, z, castShadow: false }));
   statics.add(truss);
 
-  // Viền neon chạy dọc chân & đỉnh tường (đổi màu theo theme).
+  // Viền neon chạy dọc chân & đỉnh tường (đổi màu theo theme). Viền chân tường Đông tách 2 đoạn chừa cửa thông.
   for (const [w, d, x, z] of [
     [W - 1.4, 0.06, 0, -D / 2 + 0.36],
     [W - 1.4, 0.06, 0, D / 2 - 0.36],
     [0.06, D - 1.4, -W / 2 + 0.36, 0],
     [0.06, D - 1.4, W / 2 - 0.36, 0],
   ] as const) {
-    dyn.add(mesh(geo.box(w, 0.08, d), themedMat(0, 2.6), { x, y: 0.12, z, castShadow: false }));
+    if (x !== W / 2 - 0.36) dyn.add(mesh(geo.box(w, 0.08, d), themedMat(0, 2.6), { x, y: 0.12, z, castShadow: false }));
     dyn.add(mesh(geo.box(w, 0.08, d), themedMat(1, 2.6), { x, y: H - 0.15, z, castShadow: false }));
+  }
+  for (const [z0, z1] of [
+    [-D / 2 + 0.7, sbDoor.z0 - 0.25],
+    [sbDoor.z1 + 0.25, D / 2 - 0.7],
+  ] as const) {
+    dyn.add(mesh(geo.box(0.06, 0.08, z1 - z0), themedMat(0, 2.6), { x: W / 2 - 0.36, y: 0.12, z: (z0 + z1) / 2, castShadow: false }));
   }
 
   // ── Sàn LED 8×6 ──
@@ -161,6 +200,49 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
   djG.add(box(1.1, 0.12, 0.8, '#22222c', 0, 1.18, -0.05));
   for (let k = 0; k < 8; k++) djG.add(mesh(geo.cyl(0.03, 0.03, 0.05, 6), themedMat(k % 4, 2), { x: -0.4 + (k % 4) * 0.27, y: 1.26, z: -0.25 + Math.floor(k / 4) * 0.3 }));
   djG.add(box(0.7, 0.03, 0.48, '#c9cdd6', 0.0, 1.3, -0.45, { rx: -0.25 }));
+  // Bảng chữ chạy "ĐANG PHÁT" trên mép trước bàn (setNowPlaying): canvas chỉ vẽ lại khi đổi bài, nội dung lặp tuần
+  // hoàn theo bề ngang canvas nên trượt offset (RepeatWrapping) là chữ chạy liền, không cấp phát mỗi khung.
+  const MARQUEE_W = 5.6;
+  const MARQUEE_H = 0.15;
+  const mqCanvas = document.createElement('canvas');
+  mqCanvas.width = 1024;
+  mqCanvas.height = 64;
+  const mqCtx = mqCanvas.getContext('2d')!;
+  const mqTex = new THREE.CanvasTexture(mqCanvas);
+  mqTex.colorSpace = THREE.SRGBColorSpace;
+  mqTex.wrapS = THREE.RepeatWrapping;
+  mqTex.repeat.x = MARQUEE_W / ((mqCanvas.width / mqCanvas.height) * MARQUEE_H);
+  let nowTitle: string | null = null;
+  const drawMarquee = () => {
+    const c = mqCtx;
+    const w = mqCanvas.width;
+    const h = mqCanvas.height;
+    c.fillStyle = '#07040c';
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = 'rgba(255,255,255,0.05)';
+    for (let x = 2; x < w; x += 6) for (let y = 2; y < h; y += 6) c.fillRect(x, y, 2, 2);
+    if (nowTitle) {
+      const seg = `♪ ĐANG PHÁT: ${nowTitle}`;
+      const gap = 80;
+      let size = 40;
+      c.font = `800 ${size}px ${kit.FONT_TITLE}`;
+      while (c.measureText(seg).width + gap > w && size > 14) {
+        size -= 2;
+        c.font = `800 ${size}px ${kit.FONT_TITLE}`;
+      }
+      const step = w / Math.max(1, Math.floor(w / (c.measureText(seg).width + gap)));
+      c.textAlign = 'left';
+      c.textBaseline = 'middle';
+      for (let x = gap / 2; x < w - 1; x += step) neonText(c, seg, x, h / 2 + 2, '#ff4fd8', 10);
+    }
+    mqTex.needsUpdate = true;
+  };
+  drawMarquee();
+  if (typeof document !== 'undefined' && document.fonts) void document.fonts.ready.then(drawMarquee);
+  const marquee = new THREE.Mesh(new THREE.PlaneGeometry(MARQUEE_W, MARQUEE_H), glowCanvasMat(mqTex, 1.3));
+  marquee.position.set(0, 0.905, 0.716);
+  marquee.visible = false;
+  djG.add(marquee);
   dyn.add(djG);
   anchors.set('dj_booth_top', djG);
   const speakers: THREE.Group[] = [];
@@ -194,6 +276,89 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
   const clubSign = kit.signBoard('NIẾT BÀN CLUB', { width: 6, height: 0.9, bg: '#0b0814', border: '#ff4fd8', color: '#7ff6ff', depth: 0.04 });
   clubSign.position.set(0, 5.0, -D / 2 + 0.34);
   dyn.add(clubSign);
+
+  // Khói CO2 (smoke): 4 vòi trên sàn trước bàn DJ + một đám hạt dùng chung (mảng cấp phát 1 lần, mỗi khung chỉ ghi số;
+  // cỡ hạt riêng từng hạt qua thuộc tính aSize vá vào shader của PointsMaterial).
+  const SMOKE_JETS = [-2.4, -0.8, 0.8, 2.4];
+  const SMOKE_PER_JET = 40;
+  const SMOKE_N = SMOKE_JETS.length * SMOKE_PER_JET;
+  const SMOKE_EMIT = 0.8;
+  const SMOKE_LIFE = 0.85;
+  const smokeZ = dj.z + 0.9;
+  const nozzleMat = mat('#15131c', { metalness: 0.4, roughness: 0.5 });
+  for (const x of SMOKE_JETS) {
+    statics.add(mesh(geo.box(0.26, 0.16, 0.22), nozzleMat, { x: dj.x + x, y: 0.08, z: smokeZ }));
+    statics.add(mesh(geo.cyl(0.035, 0.05, 0.12, 10), metal, { x: dj.x + x, y: 0.22, z: smokeZ }));
+  }
+  const smokeRng = createRng(4321);
+  const smokePos = new Float32Array(SMOKE_N * 3);
+  const smokeCol = new Float32Array(SMOKE_N * 4);
+  const smokeSize = new Float32Array(SMOKE_N);
+  /** Mỗi hạt: [lúc phun (s), lệch X, lệch Z, độ cao cột (m)]. */
+  const smokeSeed = new Float32Array(SMOKE_N * 4);
+  for (let i = 0; i < SMOKE_N; i++) {
+    smokeSeed[i * 4] = ((i % SMOKE_PER_JET) / SMOKE_PER_JET) * SMOKE_EMIT + smokeRng.next() * 0.03;
+    smokeSeed[i * 4 + 1] = (smokeRng.next() - 0.5) * 0.9;
+    smokeSeed[i * 4 + 2] = (smokeRng.next() - 0.5) * 0.9;
+    smokeSeed[i * 4 + 3] = 2.6 + smokeRng.next() * 1.2;
+  }
+  const smokeGeo = new THREE.BufferGeometry();
+  smokeGeo.setAttribute('position', new THREE.BufferAttribute(smokePos, 3));
+  smokeGeo.setAttribute('color', new THREE.BufferAttribute(smokeCol, 4));
+  smokeGeo.setAttribute('aSize', new THREE.BufferAttribute(smokeSize, 1));
+  const puff = kit.canvasTexture(64, 64, (c, w, h) => {
+    const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+    g.addColorStop(0, 'rgba(255,255,255,0.95)');
+    g.addColorStop(0.45, 'rgba(240,244,255,0.5)');
+    g.addColorStop(1, 'rgba(240,244,255,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, w, h);
+  });
+  const smokeMat = new THREE.PointsMaterial({ size: 1, map: puff, vertexColors: true, transparent: true, depthWrite: false });
+  // Đứng sát vòi (người chơi tới được cách hàng vòi 0,25 m): cỡ điểm vượt giới hạn GPU (511–1024 px) sẽ bị kẹp tùy máy —
+  // hạt gần trông nhỏ hơn hạt xa — nên tự kẹp ở 320 px; hạt quá sát ống kính mờ dần (khỏi mảng khói to tắt "bụp" khi
+  // tâm hạt ra khỏi màn / qua mặt phẳng gần).
+  smokeMat.onBeforeCompile = (sh) => {
+    sh.vertexShader = `attribute float aSize;\nvarying float vNear;\n${sh.vertexShader
+      .replace('gl_PointSize = size;', 'gl_PointSize = size * aSize;')
+      .replace(
+        '#include <logdepthbuf_vertex>',
+        'gl_PointSize = min(gl_PointSize, 320.0);\n\tvNear = smoothstep(0.4, 1.6, -mvPosition.z);\n\t#include <logdepthbuf_vertex>',
+      )}`;
+    sh.fragmentShader = `varying float vNear;\n${sh.fragmentShader.replace('#include <alphatest_fragment>', 'diffuseColor.a *= vNear;\n\t#include <alphatest_fragment>')}`;
+  };
+  const smokePts = new THREE.Points(smokeGeo, smokeMat);
+  smokePts.frustumCulled = false;
+  smokePts.visible = false;
+  dyn.add(smokePts);
+  let smokeStart = -Infinity;
+  /** Cột khói vọt lên nhanh rồi chậm lại (hàm mũ), loe rộng + mờ dần ở ngọn. */
+  const updateSmoke = (t: number) => {
+    const age0 = t - smokeStart;
+    smokePts.visible = age0 <= SMOKE_EMIT + SMOKE_LIFE + 0.05;
+    if (!smokePts.visible) return;
+    for (let i = 0; i < SMOKE_N; i++) {
+      const s = i * 4;
+      const a = age0 - smokeSeed[s]!;
+      if (a < 0 || a > SMOKE_LIFE) {
+        smokeCol[s + 3] = 0;
+        smokeSize[i] = 0;
+        continue;
+      }
+      const u = a / SMOKE_LIFE;
+      const spread = 0.15 + u * u * 1.4;
+      const p = i * 3;
+      smokePos[p] = dj.x + SMOKE_JETS[Math.floor(i / SMOKE_PER_JET)]! + smokeSeed[s + 1]! * spread;
+      smokePos[p + 1] = 0.3 + smokeSeed[s + 3]! * (1 - Math.exp(-a / 0.28));
+      smokePos[p + 2] = smokeZ + smokeSeed[s + 2]! * spread;
+      smokeSize[i] = 0.25 + u * 1.1;
+      smokeCol[s] = smokeCol[s + 1] = smokeCol[s + 2] = 1;
+      smokeCol[s + 3] = Math.min(1, a / 0.06) * (1 - u) * (1 - u) * 0.85;
+    }
+    smokeGeo.attributes.position!.needsUpdate = true;
+    smokeGeo.attributes.color!.needsUpdate = true;
+    smokeGeo.attributes.aSize!.needsUpdate = true;
+  };
 
   // ── Quầy bar + kệ rượu phát sáng + trạm pha chế ──
   const counter = one('bar_counter');
@@ -531,6 +696,11 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
   dealer.root.rotation.y = -Math.PI / 2;
   dyn.add(dealer.root);
 
+  // ── Sòng Công Đức (phòng nối tường Đông, bố cục SONG_BAC): đồ tĩnh gộp chung nhóm tĩnh của Bar, đèn vào environment ──
+  const casino = buildCasino(map, kit);
+  statics.add(casino.statics);
+  dyn.add(casino.dyn);
+
   // ── Điểm neo + nhóm trạm ──
   for (const [name, spec] of defaultAnchors(map)) {
     if (anchors.has(name)) continue;
@@ -568,15 +738,36 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
   const floorGlow = new THREE.PointLight('#ff4fd8', 12, 18, 1.5);
   floorGlow.position.set(0, 1.2, 0);
 
-  // ── Nhịp: tự chạy 124 BPM khi chưa có DJ (onBeat từ mini-game ghi đè) ──
+  // ── Nhịp: tự chạy 124 BPM khi chưa có DJ (onBeat từ mini-game ghi đè); nhạc dừng thì đèn về chế độ chờ ──
   let lastExternalBeat = -Infinity;
   let localBeat = 0;
   let localAcc = 0;
   let beatPulse = 0;
   let dropUntil = 0;
   let clock = 0;
-  const applyTheme = (t: Theme) => {
-    palette = THEMES[t].map((c) => new THREE.Color(c));
+  let theme: Theme = 'neon';
+  let musicPlaying = true;
+  let platterSpeed = 3.4;
+  /** Pha quét đèn (tích phân theo dt để đổi tốc độ không giật). */
+  let sweep = 0;
+  // Tường LED theo phổ nhạc: đích (giá trị DJ gửi, gom về 20 cột) và mức đang hiện (lên nhanh, rơi mượt).
+  const VU_COLS = 20;
+  const specTarget = new Float32Array(VU_COLS);
+  const specLevel = new Float32Array(VU_COLS);
+  let spectrumAt = -Infinity;
+  // Đèn chớp an toàn cho người nhạy sáng (WCAG 2.3.1 — tối đa 3 lần/giây với mảng lớn): 2,5 lần/giây (người bật "giảm
+  // chuyển động" ở hệ điều hành thì 2) và tương phản thấp — pha tối giữ màu theme (tường LED còn STROBE_LOW), pha sáng
+  // là màu theme pha trắng STROBE_TINT; không còn đen kịt ↔ trắng lóa trên cả sàn nhảy.
+  const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const STROBE_HZ = calm ? 2 : 2.5;
+  const STROBE_LOW = 0.5;
+  const STROBE_TINT = 0.45;
+  const WHITE = new THREE.Color(1, 1, 1);
+  let strobeUntil = 0;
+  let strobeWas = false;
+  let flashWas = false;
+  /** Tô lại màu theme hiện tại (palette dựng sẵn ở applyTheme — không cấp phát). */
+  const paintTheme = () => {
     for (const x of themed) {
       const c = palette[x.slot % palette.length]!;
       x.mat.color.copy(c);
@@ -588,6 +779,33 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
       (s.cone.material as THREE.MeshBasicMaterial).color.copy(c);
     });
     floorGlow.color.copy(palette[0]!);
+  };
+  /**
+   * Đèn chớp đổi pha (chỉ lúc đổi pha, không cấp phát): pha sáng — tường LED, đèn quét, đèn sàn ngả trắng STROBE_TINT;
+   * pha tối — màu theme, tường LED dịu còn STROBE_LOW. Hết chớp thì applyTheme trả lại màu.
+   */
+  const strobePhase = (light: boolean) => {
+    paintTheme();
+    for (const v of vu) {
+      const m = v.m.material as THREE.MeshStandardMaterial;
+      if (!light) {
+        m.emissive.multiplyScalar(STROBE_LOW);
+        continue;
+      }
+      m.color.lerp(WHITE, STROBE_TINT);
+      m.emissive.lerp(WHITE, STROBE_TINT);
+    }
+    if (!light) return;
+    for (const s of spots) {
+      s.light.color.lerp(WHITE, STROBE_TINT);
+      (s.cone.material as THREE.MeshBasicMaterial).color.lerp(WHITE, STROBE_TINT);
+    }
+    floorGlow.color.lerp(WHITE, STROBE_TINT);
+  };
+  const applyTheme = (t: Theme) => {
+    theme = t;
+    palette = THEMES[t].map((c) => new THREE.Color(c));
+    paintTheme();
   };
   const onBeat = (index: number) => {
     beatPulse = 1;
@@ -613,8 +831,9 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
     environment: {
       background: new THREE.Color('#0b0814'),
       fog: new THREE.Fog('#140d24', 16, 62),
-      lights: [hemi, key, barLight, vipLight, bcLight, floorGlow, ...spots.map((s) => s.light)],
+      lights: [hemi, key, barLight, vipLight, bcLight, floorGlow, ...spots.map((s) => s.light), ...casino.lights],
     },
+    labelOccluded,
     controls: {
       onBeat(index) {
         lastExternalBeat = clock;
@@ -631,10 +850,42 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
       setLightTheme(t) {
         applyTheme(t);
       },
+      setSpectrum(bands) {
+        const n = bands.length;
+        if (!n) return;
+        spectrumAt = clock;
+        // Gom n dải về 20 cột (trung bình các dải rơi vào cột; ít dải hơn thì một dải phủ nhiều cột).
+        for (let c = 0; c < VU_COLS; c++) {
+          const a = Math.floor((c * n) / VU_COLS);
+          const b = Math.max(a + 1, Math.floor(((c + 1) * n) / VU_COLS));
+          let sum = 0;
+          for (let i = a; i < b; i++) sum += bands[i]!;
+          specTarget[c] = Math.min(1, Math.max(0, sum / (b - a)));
+        }
+      },
+      setMusicPlaying(playing) {
+        musicPlaying = playing;
+      },
+      setNowPlaying(title) {
+        const next = title?.trim() || null;
+        marquee.visible = next !== null;
+        if (next === nowTitle) return;
+        nowTitle = next;
+        if (next) {
+          mqTex.offset.x = 0;
+          drawMarquee();
+        }
+      },
+      strobe(seconds) {
+        strobeUntil = Math.max(strobeUntil, clock + Math.max(0, seconds));
+      },
+      smoke() {
+        smokeStart = clock;
+      },
     },
     update(dt, t) {
       clock = t;
-      if (clock - lastExternalBeat > 2) {
+      if (musicPlaying && clock - lastExternalBeat > 2) {
         localAcc += dt;
         const beatLen = 60 / 124;
         while (localAcc >= beatLen) {
@@ -644,33 +895,75 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
       }
       beatPulse = Math.max(0, beatPulse - dt * 4);
       const dropping = clock < dropUntil;
+      const strobing = clock < strobeUntil;
+      const flash = strobing && (clock * STROBE_HZ) % 1 < 0.35;
+      if (strobing && (flash !== flashWas || !strobeWas)) strobePhase(flash);
+      flashWas = flash;
+      if (strobeWas && !strobing) applyTheme(theme);
+      strobeWas = strobing;
       for (const tile of tiles) {
-        tile.level = Math.max(0.06, tile.level - dt * 2.2);
+        if (strobing) {
+          // Ô sàn: pha sáng màu theme ngả trắng, pha tối màu theme dịu — không về đen, không lên trắng lóa.
+          const c = palette[(tile.i + tile.j) % palette.length]!;
+          if (flash) tile.mat.emissive.copy(c).lerp(WHITE, STROBE_TINT);
+          else tile.mat.emissive.copy(c).multiplyScalar(STROBE_LOW);
+          continue;
+        }
+        let rest = 0.06;
+        if (!musicPlaying) {
+          // Chờ nhạc: sóng màu theme chậm rãi lan chéo sàn.
+          tile.color.copy(palette[(tile.i + tile.j) % palette.length]!);
+          rest = 0.1 + 0.1 * Math.sin(t * 1.3 + (tile.i + tile.j) * 0.55);
+        }
+        tile.level = Math.max(rest, tile.level - dt * 2.2);
         tile.mat.emissive.copy(tile.color).multiplyScalar(tile.level * (dropping ? 1.6 : 1));
       }
       const pump = 1 + beatPulse * 0.06;
       for (const sp of speakers) sp.scale.set(pump, 1 + beatPulse * 0.03, pump);
-      for (const p of platters) p.rotation.y -= dt * 3.4;
+      platterSpeed += ((musicPlaying ? 3.4 : 0) - platterSpeed) * Math.min(1, dt * 1.8);
+      for (const p of platters) p.rotation.y -= dt * platterSpeed;
+      // Tường LED: đèn chớp > phổ nhạc thật (lên nhanh, rơi mượt) > hoạt ảnh tự chạy (nhạc dừng: sóng thấp, chậm).
+      const live = clock - spectrumAt <= 0.5;
+      for (let c = 0; c < VU_COLS; c++) {
+        const lv = specLevel[c]!;
+        const tg = live ? specTarget[c]! : 0;
+        specLevel[c] = tg > lv ? lv + (tg - lv) * Math.min(1, dt * 30) : Math.max(tg, lv - dt * 1.6);
+      }
       for (const v of vu) {
-        const level = (Math.sin(t * 6 + v.col * 0.7) * 0.5 + 0.5) * 0.6 + beatPulse * 0.5 + (dropping ? 0.4 : 0);
+        let level: number;
+        if (strobing) level = 2; // cả tường sáng, độ sáng đổi theo pha (strobePhase)
+        else if (live) level = specLevel[v.col]! * 1.05 + (dropping ? 0.25 : 0);
+        else if (!musicPlaying) level = 0.12 + (Math.sin(t * 1.4 + v.col * 0.45) * 0.5 + 0.5) * 0.2;
+        else level = (Math.sin(t * 6 + v.col * 0.7) * 0.5 + 0.5) * 0.6 + beatPulse * 0.5 + (dropping ? 0.4 : 0);
         const row = Math.round(v.m.position.y / 0.42);
         v.m.visible = row / 8 < level;
       }
       ball.rotation.y += dt * (dropping ? 2.4 : 0.6);
       dots.rotation.y -= dt * (dropping ? 1.2 : 0.3);
       dotMat.opacity = 0.35 + beatPulse * 0.3;
+      sweep += dt * (dropping ? 2.2 : musicPlaying ? 0.7 : 0.25);
       for (const s of spots) {
-        const a = t * (dropping ? 2.2 : 0.7) + s.ph;
+        const a = sweep + s.ph;
         s.light.target.position.set(s.base.x * 0.4 + Math.cos(a) * 4, 0, s.base.z * 0.4 + Math.sin(a * 1.3) * 3.5);
         s.light.target.updateMatrixWorld();
         s.cone.lookAt(s.light.target.position);
         s.cone.rotateX(-Math.PI / 2);
-        s.light.intensity = 40 + beatPulse * 50;
-        (s.cone.material as THREE.MeshBasicMaterial).opacity = 0.05 + beatPulse * 0.06;
+        const cone = s.cone.material as THREE.MeshBasicMaterial;
+        if (strobing) {
+          // Trong khoảng nảy theo phách bình thường (40–90) — không tắt hẳn rồi lóa 140.
+          s.light.intensity = flash ? 90 : 36;
+          cone.opacity = flash ? 0.11 : 0.045;
+        } else {
+          s.light.intensity = musicPlaying ? 40 + beatPulse * 50 : 22;
+          cone.opacity = musicPlaying ? 0.05 + beatPulse * 0.06 : 0.035;
+        }
       }
       lasers.visible = dropping;
       if (dropping) lasers.children.forEach((l, i) => (l.rotation.y = (l.userData.a as number) + Math.sin(t * 3 + i) * 0.4));
-      floorGlow.intensity = 8 + beatPulse * 14;
+      floorGlow.intensity = strobing ? (flash ? 24 : 9) : 8 + beatPulse * 14;
+      if (smokePts.visible || clock - smokeStart <= SMOKE_EMIT + SMOKE_LIFE) updateSmoke(clock);
+      if (marquee.visible) mqTex.offset.x = (mqTex.offset.x + dt * 0.22) % 1;
+      casino.update(dt, t);
       bulbs.forEach((b, i) => (b.emissiveIntensity = ((i + Math.floor(t * 4)) % 2 ? 2.2 : 0.4)));
       for (const n of npcs) {
         n.av.update(dt, t, 0);
@@ -685,6 +978,7 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
       for (const n of npcs) n.av.dispose();
       bartender.dispose();
       dealer.dispose();
+      casino.dispose();
       kit.disposeTree(root);
     },
   };

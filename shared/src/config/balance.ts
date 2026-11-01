@@ -67,6 +67,11 @@ export const HOST = {
   punishCooldownMs: 30_000,
   punishSameTargetMs: 120_000,
   mapChangeCountdownMs: 5_000,
+  /**
+   * Ghế Phương Trượng đổi qua lại giữa cùng một cặp người trong chừng này (vd đặt / gỡ cược Sòng Công Đức quanh mức
+   * Công Đức của nhau) → ghế vẫn đổi thật nhưng không bắn lại banner / chuông / tin chat cho cả phòng.
+   */
+  swapQuietMs: 30_000,
 } as const;
 
 export const BLESS = {
@@ -374,6 +379,10 @@ export interface DjTrackDef {
   bpm: number;
 }
 
+/**
+ * Bàn DJ (spec Quán Bar mở rộng mục 4): ai đứng ở bàn cũng chỉnh được, mỗi lúc 1 người. `tracks` = 4 bài tổng hợp
+ * (Web Audio); 4 bài thu sẵn + số đo BPM/phách ở `shared/src/activities/dj.ts` (DJ_TRACKS = thu sẵn trước, tổng hợp sau).
+ */
 export const DJ = {
   tracks: [
     { id: 'vinahouse_dac_dao', name: 'Vinahouse Đắc Đạo', bpm: 136 },
@@ -383,6 +392,25 @@ export const DJ = {
   ] as DjTrackDef[],
   dropCooldownMs: 8000,
   hornCooldownMs: 5000,
+  confettiCooldownMs: 10_000,
+  smokeCooldownMs: 10_000,
+  strobeCooldownMs: 10_000,
+  /** Đèn chớp kéo dài (ms). */
+  strobeMs: 4000,
+  /** Đổi bài (⏮ ⏭, chọn bài) tối thiểu cách nhau. */
+  switchCooldownMs: 3000,
+  /** Phát / dừng tối thiểu cách nhau (đỡ bấm dồn làm cả quán tua nhạc liên tục). */
+  toggleCooldownMs: 1000,
+  /** Đổi màu đèn tối thiểu cách nhau (đỡ bấm xen kẽ làm đèn cả quán nháy liên tục, lách thời gian nghỉ đèn chớp). */
+  themeCooldownMs: 800,
+  /** Vào Bar: bài đầu bắt đầu sau ngần này (máy khách kịp tải nhạc). */
+  enterDelayMs: 1000,
+  /** Đổi bài / phát tiếp / sang bài kế: bắt đầu sau ngần này. */
+  switchDelayMs: 800,
+  /** Người đứng bàn đi xa hơn bán kính trạm + ngần này (m) → bàn trống. */
+  leaveSlack: 2,
+  /** Mức to nhạc DJ khi đứng trong Sòng Công Đức (sảnh Bar = 1). */
+  casinoLevel: 0.55,
 } as const;
 
 export interface IngredientDef {
@@ -444,4 +472,151 @@ export const BAUCUA = {
 export const TRUTHWHEEL = {
   cooldownMs: 15_000,
   spinMs: 5000,
+} as const;
+
+// ─────────────── Sòng Công Đức — cược bằng Công Đức thật (ctx.wager), spec 2026-11-01 ───────────────
+// Mỗi khối thuộc đúng 1 trò; lane làm trò nào chỉ sửa khối của trò đó.
+
+export const CASINO = {
+  /** Mệnh giá phỉnh (Công Đức) ở 4 bàn theo ván; phím 1–4 chọn. */
+  chips: [1, 5, 10, 50],
+  /** Trần tổng cược của 1 người trong 1 ván ở 1 bàn. */
+  maxBetPerRound: 100,
+  /** Tạp Niệm cộng cho mỗi người có cược khi ván chốt (đỏ đen làm tâm loạn). */
+  tapNiemPerRound: 2,
+  /** Bàn tự nghỉ khi chừng này ván liên tiếp không ai cược (hoặc không còn ai đứng gần). */
+  idleRounds: 3,
+  /** Dung sai (m) cộng thêm bán kính trạm khi server kiểm "đứng gần bàn". */
+  nearSlack: 0.6,
+  /**
+   * Tin chat "tụt cấp vì đỏ đen" của 1 người tối đa 1 lần trong chừng này (toast riêng vẫn gửi mỗi lần) — đặt / gỡ cược
+   * quanh ngưỡng cấp không spam cả phòng.
+   */
+  demoteChatCooldownMs: 60_000,
+} as const;
+
+/** Tài Xỉu chẵn lẻ: 3 xúc xắc; lãi theo ô (thua cả 4 ô Tài/Xỉu/Chẵn/Lẻ khi ra bộ ba). */
+export const TAIXIU = {
+  betMs: 15_000,
+  rollMs: 3000,
+  payoutMs: 5000,
+  /** Lãi × tiền cược (thắng nhận lại cược + lãi). */
+  payout: { tai: 1, xiu: 1, chan: 1, le: 1, bo_ba: 30 },
+  /** Số ván gần nhất hiện ở bảng cầu. */
+  history: 16,
+} as const;
+
+/**
+ * Xì Dách (luật Việt): Át 2 lá 11/10/1, 3 lá 10/1, ≥ 4 lá 1; người đủ 16 mới dằn; nhà cái rút tới 16 rồi **xét dần**
+ * (chốt ghế thua/hòa, còn ghế hơn điểm thì rút tiếp — xem xiDachDealerStep). **Ngũ Linh lãi ×1** (spec ghi ×2): với ×2
+ * người chơi khá nhìn lá ngửa nhà cái là có lợi thế dương — có Át thì rút "miễn phí" (Át 3 lá = 10/1, không thể Quắc) và
+ * đuổi Ngũ Linh gần như chắc thắng: chiến lược S2 +0,87% (600 000 ván), chơi tối ưu +2,03% → Công Đức sinh ra từ không khí.
+ * Lợi thế nhà cái với ×1, đo bằng chính hàm luật (bộ 52 lá xào bằng createRng(20261101); cách đo + test hồi quy ở
+ * shared/tests/xidach.test.ts): người rút tới 16 rồi dằn 3,9% (1 ghế, 200 000 ván) · 3,6% (5 ghế × 40 000 ván, seed 7);
+ * S2 (dưới 16 rút; có Át mà ≤ 18 — 3 lá ≤ 19 — thì rút; 4 lá ≤ 17 rút; đúng 16 mà lá ngửa A hoặc 7–K thì rút) 2,3%
+ * (600 000 ván); chơi tối ưu (expectimax theo lá ngửa, bộ bài vô hạn, tính chính xác) 1,32%. Nếu nhà cái chỉ rút tới 16
+ * rồi dừng thì lỗ ≈ 6,9% (hai bên đối xứng mà lãi đặc biệt chỉ người chơi hưởng); nâng dealerStandAt lên 17 thì tệ hơn
+ * (người chơi tối ưu lời 0,8%).
+ */
+export const XIDACH = {
+  betMs: 15_000,
+  dealMs: 2500,
+  /** Cả bàn rút/dằn cùng lúc trong chừng này; hết giờ tự rút tới đủ tuổi rồi dằn. */
+  turnMs: 20_000,
+  dealerStepMs: 900,
+  resultMs: 6000,
+  seats: 5,
+  playerMinStand: 16,
+  /** Nhà cái rút tới chừng này mới được xét bài. */
+  dealerStandAt: 16,
+  maxCards: 5,
+  /** Lãi × tiền cược theo hạng thắng. */
+  payout: { xi_bang: 3, xi_dach: 2, ngu_linh: 1, win: 1 },
+} as const;
+
+/**
+ * Bài Cào 3 lá: nút = tổng mod 10, Ba Tiên (3 lá J/Q/K) cao nhất; bằng nút so lá lớn nhất (K > Q > J > 10 > … > Át), vẫn
+ * bằng thì nhà cái thắng; thêm luật **bù gặp bù (cùng 0 nút) → nhà cái ăn, không so lá**. Lợi thế nhà cái (liệt kê chính
+ * xác mọi cặp tay 3 lá rời nhau, shared/tests/baicao.test.ts): **0,933%**. Lý do thêm luật bù: đúng luật spec (lãi ×1,
+ * Ba Tiên ×2) nhà cái chỉ lợi 0,077% — dưới khoảng [0,5%; 4%]; trong các cách chỉnh, luật bù lệch spec ít nhất (coi J/Q/K
+ * ngang nhau khi so lá 2,14%; so lá theo điểm 3,57%; bằng nút nhà cái ăn luôn 8,8% — quá cao). Khách thắng thường 48,05%,
+ * thắng bằng Ba Tiên 0,99%; mỗi nút 0..9 ra ≈ 10%, Ba Tiên 1%.
+ */
+export const BAICAO = {
+  betMs: 15_000,
+  /** Chia + lật dần (pha 'resolving'). */
+  revealMs: 3000,
+  /** Trong revealMs: bài bay hết trong chừng này đầu tiên, phần còn lại lật 3 đợt (lá 1 → 2 → 3 của mọi tay + nhà cái). */
+  dealFlyMs: 1400,
+  resultMs: 6000,
+  /** Lãi × tiền cược: thắng thường / thắng bằng Ba Tiên (nỉ bàn in "BA TIÊN ĂN ĐÔI" đọc từ đây). */
+  payout: { win: 1, ba_tien: 2 },
+  /** Số tay khách bày lá 3D trên bàn (người cược thêm vẫn chơi, chỉ hiện ở bảng). */
+  seats3d: 6,
+} as const;
+
+export const NOHU_SYMBOLS = ['bia', 'dao', 'sen', 'chuong', 'vang', 'that', 'hu'] as const;
+export type NoHuSymbol = (typeof NOHU_SYMBOLS)[number];
+
+/**
+ * Nổ Hũ: 3 cuộn × 1 đường. Số ô mỗi biểu tượng trên từng cuộn (mỗi cuộn 32 ô). Bảng trả (× mức cược):
+ * 3 giống nhau theo `paytable`; 3 "quả" bất kỳ lẫn nhau (bia/đào/sen) ×`mixedFruit`; đúng 2 hũ ×`twoHu`; 3 hũ = nổ hũ.
+ * Với số dưới đây: trả lại (chưa tính hũ) 27757/32768 ≈ 84,7%, tần suất trúng ≈ 32,6%, nổ hũ 9/32768 ≈ 1/3641 lượt;
+ * cộng 10% góp hũ → ≈ 94,7%. Khóa bằng test liệt kê đủ 32³ tổ hợp (shared/tests/nohu.test.ts); dải cuộn dựng tất
+ * định từ `reelCounts` ở shared/src/activities/nohu.ts. Nổ hũ ăn theo tỉ lệ mức cược (cược / cược tối đa × hũ, cược 20 ăn
+ * trọn — user chốt 2026-11-01) nên mọi mức cược cùng trả lại dài hạn ≈ 94,4–95,7% (mô phỏng 8 triệu lượt 2 người cược 20
+ * và 1 xen kẽ, 3 seed); nếu ai nổ cũng ăn trọn hũ thì người cược 1 hớt hũ người cược 20 nuôi (~190%).
+ */
+export const NOHU = {
+  machines: 4,
+  bets: [1, 5, 10, 20],
+  spinMs: 2200,
+  /** Mốc dừng từng cuộn tính từ lúc quay (ms). */
+  reelStopMs: [1200, 1700, 2200],
+  /** Khoảng cách tối thiểu giữa 2 lượt của một máy. */
+  minIntervalMs: 2400,
+  jackpotSeed: 100,
+  jackpotShare: 0.1,
+  tapNiemPerSpin: 1,
+  /** Đi xa quá bán kính trạm máy + chừng này (m) thì tự rời máy (lượt đang quay vẫn được trả). */
+  leaveSlack: 1,
+  reelCounts: [
+    { bia: 9, dao: 7, sen: 5, chuong: 4, vang: 2, that: 2, hu: 3 },
+    { bia: 9, dao: 7, sen: 5, chuong: 4, vang: 2, that: 2, hu: 3 },
+    { bia: 10, dao: 7, sen: 6, chuong: 4, vang: 2, that: 2, hu: 1 },
+  ] as Record<NoHuSymbol, number>[],
+  paytable: { bia: 4, dao: 6, sen: 10, chuong: 15, vang: 40, that: 80 } as Record<Exclude<NoHuSymbol, 'hu'>, number>,
+  fruits: ['bia', 'dao', 'sen'] as NoHuSymbol[],
+  mixedFruit: 2,
+  twoHu: 3,
+} as const;
+
+/**
+ * Đua Ngựa: 6 ngựa, phong độ ngẫu nhiên mỗi ván → xác suất về nhất → tỉ lệ trả (đã trừ biên nhà cái). Lợi thế nhà cái
+ * đo trên 2 000 ván seed cố định (shared/tests/duangua.test.ts): ≈ 7,8% (biên 7% + phần làm tròn xuống 0,1 — ngựa
+ * mạnh nhất chịu nặng hơn: trung bình ≈ 8,4%, cá biệt tới ~11%; ngựa yếu nhất ≈ 7,35%).
+ * Tiền trả là số nguyên: floor(tổng cược của 1 người vào ngựa đó × tỉ lệ) (raceReturn) — giữ làm tròn XUỐNG vì làm tròn
+ * lên / làm tròn thường có thể cho kỳ vọng > 1 (vd p 0,252, tỉ lệ ×3,6, cược 1 mà trả 4). Nên biên thực phụ thuộc mệnh
+ * giá (đo bằng raceOdds + raceReturn, 200 000 ván, createRng(20261101)): tổng cược vào 1 ngựa là bội số 10 → 7,82% (cược
+ * đều 6 ngựa) / 8,45% (luôn cược ngựa ưa chuộng nhất); là 5 → 8,67% / 10,05%; là 1 → 15,36% / 22,13% (vd ×2,3 chỉ trả 2).
+ */
+export const DUANGUA = {
+  horses: 6,
+  betMs: 20_000,
+  raceMs: 12_000,
+  resultMs: 6000,
+  /** Biên nhà cái: tỉ lệ trả = (1 − margin) / p, làm tròn xuống 0,1. */
+  margin: 0.07,
+  minOdds: 1.5,
+  maxWinProb: 0.4,
+  minWinProb: 0.05,
+  /** Phong độ mỗi ván: trọng số e^u, u đều trong [−formSpread, formSpread] (rồi chuẩn hóa + kẹp [min, max]). */
+  formSpread: 1,
+  /** Số ván gần nhất hiện ở bảng "ngựa về nhất". */
+  history: 12,
+  /** Số mốc tiến độ của kịch bản đua (kể cả mốc 0 và mốc về đích). */
+  keyframes: 13,
+  /** Các ngựa sau về đích trễ hơn ngựa nhất trong khoảng này (ms). */
+  trailMinMs: 150,
+  trailMaxMs: 1500,
 } as const;

@@ -19,6 +19,12 @@ export interface RecordedOptions {
    * Không có = không tua: lần đầu phát từ đầu, nối lại thì phát tiếp chỗ đã dừng.
    */
   startAt?: (duration: number) => number;
+  /**
+   * Bám giờ server liên tục, không chỉ lúc bắt đầu (nhạc DJ — cả quán nghe cùng một phách): giây đang phát luôn theo
+   * `startAt` (đã bù trễ đầu ra) — lệch nhỏ thì nhích tốc độ phát, lệch lớn thì tua; `startAt` âm = chưa tới giờ bắt
+   * đầu: đứng chờ ở giây 0 rồi vào đúng lúc. Mặc định false: chỉ tua theo `startAt` khi phát / nối lại.
+   */
+  follow?: boolean;
   /** Lặp lại bài khi hết (mặc định true). */
   loop?: boolean;
   /** Bài phát hết (chỉ khi loop = false) — để chuyển bài kế trong danh sách. */
@@ -42,10 +48,15 @@ export interface AudioApi {
   setMusic(track: TrackId | null): void;
   /** Bài có nhịp canh theo giờ server: phách 0 rơi đúng `startServerMs`. Thay nhạc nền hiện tại. */
   startBeatTrack(track: TrackId, startServerMs: number, bpm: number): void;
-  /** Dừng bài có nhịp, trở về nhạc nền trước đó. */
+  /** Dừng bài có nhịp, trở về nhạc nền trước đó; mức to bài có nhịp (setBeatLevel) trở về 1. */
   stopBeatTrack(): void;
-  /** Hiệu ứng "drop" của DJ (bass boom + quét lọc). */
-  djDrop(): void;
+  /**
+   * Mức to bài có nhịp 0..1 (mặc định 1, đổi êm ~0,5 giây) — vd nhạc DJ tổng hợp nhỏ lại trong Sòng Công Đức như bài
+   * thu sẵn. Áp cho bài đang phát lẫn bài bật sau; nhạc nền (setMusic) không theo. Gọi trước khi mở khóa thì được nhớ.
+   */
+  setBeatLevel(level: number): void;
+  /** Hiệu ứng "drop" của DJ (bass boom + quét lọc + còi); `level` 0..1 nhân vào mức to (mặc định 1 — vd nhỏ lại trong Sòng). */
+  djDrop(level?: number): void;
 
   /**
    * Nhạc thu sẵn phát trực tuyến qua kênh nhạc (file dài — nhạc kinh ở Đại Pháp Đường). `level` 0..1 = mức to mong
@@ -60,6 +71,12 @@ export interface AudioApi {
    * lâu (~15 giây) → 0, và kết quả hỏng không được nhớ để lần gọi sau hỏi lại.
    */
   recordedDuration(url: string): Promise<number>;
+  /**
+   * Phổ nhạc đang phát trên kênh nhạc (nhạc thu sẵn + nhạc tổng hợp, sau thanh âm lượng nhạc): ghi vào `out` mỗi phần
+   * tử 0..1, chia dải theo thang log từ ~40 Hz tới ~12 kHz (out.length dải), đã làm mượt. Trả false (out = 0) khi âm
+   * thanh chưa mở khóa / không có nhạc. Rẻ, gọi mỗi khung hình được.
+   */
+  musicBands(out: Float32Array): boolean;
 
   setVolume(channel: AudioChannel, value: number): void;
   getVolume(channel: AudioChannel): number;

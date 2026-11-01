@@ -1,0 +1,97 @@
+/* Bàn Tài Xỉu — bổ sung cho casino.css (tiền tố tx-): ô Xỉu lam, Bộ Ba chiếm cả hàng, xúc xắc HTML, bảng cầu. */
+.tx-grid .tx-boba {
+  grid-column: 1 / -1;
+  min-height: 64px;
+}
+.cs-tile.tx-xiu {
+  background: radial-gradient(circle at 50% 30%, #3f7fe0, #1d4a9a);
+}
+.tx-dice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 2px 0 8px;
+}
+.tx-die {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 44px;
+  height: 44px;
+  padding: 5px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: radial-gradient(circle at 40% 35%, #fffdf6, #e4dac4);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25), inset 0 0 0 1px #c9bb9c;
+  animation: tx-pop 0.35s ease-out both;
+}
+.tx-die:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.tx-die:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.tx-die i {
+  display: block;
+  margin: auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.tx-die i.on {
+  background: #1b1b1f;
+}
+.tx-die.red i.on {
+  background: #c8211b;
+}
+.tx-die i.big {
+  width: 15px;
+  height: 15px;
+}
+.tx-sum {
+  font: 800 22px var(--font-title);
+  color: #6e2c17;
+}
+.tx-dice.triple .tx-sum {
+  color: #b8862f;
+}
+@keyframes tx-pop {
+  from {
+    transform: translateY(-8px) rotate(-25deg) scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.tx-winners {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f6a3a;
+  text-align: center;
+}
+.tx-road {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  background: #fbf6ea;
+}
+.tx-road-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font: 800 13px var(--font-title);
+  color: var(--ink-soft);
+}
+.tx-road .cs-road {
+  margin-top: 6px;
+  min-height: 24px;
+}
+.tx-open {
+  width: 100%;
+  margin-top: 10px;
+}

@@ -51,7 +51,7 @@ describe('Thi nhảy', () => {
 
 describe('DJ', () => {
   it('chỉ số phách và ranh ô nhịp kế tiếp theo giờ server', () => {
-    const s = { startedAt: 1000, bpm: 120 };
+    const s = { beat0: 1000, bpm: 120 };
     expect(beatIndexAt(s, 1000)).toBe(0);
     expect(beatIndexAt(s, 1499)).toBe(0);
     expect(beatIndexAt(s, 1500)).toBe(1);

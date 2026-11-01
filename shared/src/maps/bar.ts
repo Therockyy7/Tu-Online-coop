@@ -11,16 +11,56 @@ const FACE_WEST = -PI / 2;
 const box = (x: number, z: number, w: number, d: number, tag: string): ColliderDef => ({ kind: 'box', x, z, w, d, tag });
 const circle = (x: number, z: number, r: number, tag: string): ColliderDef => ({ kind: 'circle', x, z, r, tag });
 
+/**
+ * Phòng **Sòng Công Đức** nối tường Đông của Bar — NGUỒN SỰ THẬT bố cục cho cả map (va chạm, trạm) lẫn phần dựng hình
+ * (`client/src/art/bar/casino.ts`, neo ở `client/src/art/anchors.ts`). Đổi số ở đây thì hai bên cùng theo.
+ * Mọi bàn là hộp thẳng trục: tâm (x, z), rộng w theo X, sâu d theo Z.
+ */
+export const SONG_BAC = {
+  /** Lòng phòng = mặt trong của tường va chạm (tường dày 1 m nằm ngoài các mốc này). */
+  minX: 23,
+  maxX: 40,
+  minZ: -8,
+  maxZ: 16,
+  /** Cửa thông ở tường Đông của Bar (tường x 22..23): khoảng z, cao 3,2 m. */
+  door: { z0: 3.5, z1: 6.5, height: 3.2 },
+  ceiling: 5.4,
+  /** Lối thảm đỏ chạy từ cửa sang tường Đông. */
+  aisle: { z0: 3.5, z1: 6.5 },
+  /** Độ cao mặt nỉ các bàn bài/xúc xắc (đồ động đặt ở đây). */
+  feltY: 0.86,
+  /** Tài Xỉu: nhà cái đứng phía Bắc bàn, khách đứng phía lối giữa (Nam). */
+  taixiu: { x: 27, z: 1.8, w: 3.2, d: 1.8 },
+  /**
+   * Xì Dách: bàn bán nguyệt (nửa elip bán trục w/2 × d) — cạnh thẳng phía Bắc (nhà cái, z = z − d/2), cạnh cong quay về
+   * Nam (5 ghế khách). Hộp này là khung bao để dựng hình; va chạm ôm sát nửa elip (XIDACH_COLLIDERS bên dưới).
+   */
+  xidach: { x: 35, z: 1.6, w: 3.4, d: 1.6 },
+  /** Bài Cào: nhà cái đứng phía Nam bàn, khách đứng phía lối giữa (Bắc). */
+  baicao: { x: 27, z: 9.4, w: 3.2, d: 1.8 },
+  /**
+   * Đường đua ngựa dọc tường Bắc: bàn đua (x, z, w, d), mặt đường cao surfaceY; ngựa chạy theo +X từ startX tới
+   * finishX; làn k (0..5) ở z = laneZ0 + k × laneGap. Hai điểm đặt cược (trạm khu vực) ở x = rails[i], z = railZ.
+   */
+  race: { x: 31.5, z: -6.2, w: 14, d: 3, surfaceY: 0.95, startX: 25.3, finishX: 37.7, laneZ0: -7.25, laneGap: 0.42, rails: [27.5, 35.5], railZ: -3.2 },
+  /** 4 máy xèng sát tường Nam (thân máy hộp w × d tâm (x, z)), người chơi đứng ở standZ nhìn về Nam. */
+  slots: { xs: [32, 34, 36, 38], z: 15.4, w: 1.2, d: 1.0, standZ: 14.0 },
+  /** Bệ "Hũ Công Đức" (hũ thưởng chung của Nổ Hũ) giữa phòng. */
+  jackpot: { x: 35.5, z: 9.8, r: 1.1 },
+} as const;
+
 const stations: StationDef[] = [];
 const colliders: ColliderDef[] = [];
 const add = (s: StationDef) => stations.push(s);
 
-// ── Tường bao (cửa Hồi Sơn ở giữa phía Nam chỉ là trang trí) ──
+// ── Tường bao (cửa Hồi Sơn ở giữa phía Nam chỉ là trang trí). Tường Đông chừa cửa thông sang Sòng Công Đức ──
+const SB = SONG_BAC;
 colliders.push(
   box(0, -16.5, 46, 1, 'wall_perimeter'),
   box(0, 16.5, 46, 1, 'wall_perimeter'),
   box(-22.5, 0, 1, 34, 'wall_perimeter'),
-  box(22.5, 0, 1, 34, 'wall_perimeter'),
+  box(22.5, (-17 + SB.door.z0) / 2, 1, SB.door.z0 + 17, 'wall_perimeter'),
+  box(22.5, (SB.door.z1 + 17) / 2, 1, 17 - SB.door.z1, 'wall_perimeter'),
 );
 
 // ── Sàn nhảy LED 8×6 ô (ô 2 m) ──
@@ -97,9 +137,48 @@ add({ id: 'baucua_table', kind: 'baucua_table', activity: 'baucua', x: 17.5, z: 
 colliders.push(box(-5, 14.6, 2.6, 0.9, 'exchange_kiosk'));
 add({ id: 'exchange_kiosk', kind: 'exchange_kiosk', activity: 'exchange', x: -5, z: 13.2, r: 1.4, label: 'Quầy đổi Đức', ry: FACE_SOUTH });
 
+// ── Sòng Công Đức (phòng nối tường Đông, xem SONG_BAC) ──
+const midX = (SB.minX + SB.maxX) / 2;
+const wallW = SB.maxX - SB.minX + 2;
+/**
+ * Va chạm bàn Xì Dách ôm sát nửa elip (bán trục a = w/2 theo X, b = d theo Z, cạnh thẳng z0 phía Bắc): 1 hộp dải sát
+ * cạnh thẳng (phía nhà cái) + 3 hình tròn ôm cung — thay hộp bao w × d cũ (2 góc phía Nam thành tường vô hình, người
+ * chơi bị chặn cách mép bàn tới ~0,8 m). Số khớp cho a 1,7 × b 1,6 với bán kính người chơi MOVE.radius 0,45: mép vùng
+ * chặn lệch mép bàn ≤ ~0,07 m mọi hướng, không lố ra sau cạnh thẳng (shared/tests/maps.test.ts kiểm) — đổi kích thước
+ * bàn thì khớp lại các số này.
+ */
+const XD = SB.xidach;
+const xdZ0 = XD.z - XD.d / 2;
+const XIDACH_COLLIDERS: ColliderDef[] = [
+  box(XD.x, xdZ0 + 0.225, XD.w, 0.45, 'xidach_table'),
+  circle(XD.x, xdZ0 + 0.88, 0.78, 'xidach_table'),
+  circle(XD.x - 0.74, xdZ0 + 0.7, 0.7, 'xidach_table'),
+  circle(XD.x + 0.74, xdZ0 + 0.7, 0.7, 'xidach_table'),
+];
+colliders.push(
+  box(midX, SB.minZ - 0.5, wallW, 1, 'casino_wall'),
+  box(midX, SB.maxZ + 0.5, wallW, 1, 'casino_wall'),
+  box(SB.maxX + 0.5, (SB.minZ + SB.maxZ) / 2, 1, SB.maxZ - SB.minZ + 2, 'casino_wall'),
+  box(SB.taixiu.x, SB.taixiu.z, SB.taixiu.w, SB.taixiu.d, 'taixiu_table'),
+  ...XIDACH_COLLIDERS,
+  box(SB.baicao.x, SB.baicao.z, SB.baicao.w, SB.baicao.d, 'baicao_table'),
+  box(SB.race.x, SB.race.z, SB.race.w, SB.race.d, 'race_track'),
+  circle(SB.jackpot.x, SB.jackpot.z, SB.jackpot.r, 'jackpot_urn'),
+  ...SB.slots.xs.map((x) => box(x, SB.slots.z, SB.slots.w, SB.slots.d, 'slot_machine')),
+);
+add({ id: 'taixiu_table', kind: 'taixiu_table', activity: 'taixiu', x: SB.taixiu.x, z: SB.taixiu.z, r: 3, label: 'Tài Xỉu chẵn lẻ', ry: FACE_NORTH, area: true });
+add({ id: 'xidach_table', kind: 'xidach_table', activity: 'xidach', x: SB.xidach.x, z: SB.xidach.z, r: 3, label: 'Xì Dách', ry: FACE_NORTH, area: true });
+add({ id: 'baicao_table', kind: 'baicao_table', activity: 'baicao', x: SB.baicao.x, z: SB.baicao.z, r: 3, label: 'Bài Cào 3 lá', ry: FACE_SOUTH, area: true });
+SB.race.rails.forEach((x, i) =>
+  add({ id: `race_rail_${i + 1}`, kind: 'race_rail', activity: 'duangua', x, z: SB.race.railZ, r: 3, label: 'Đua Ngựa — đặt cược', ry: FACE_NORTH, area: true, data: { index: i + 1 } }),
+);
+SB.slots.xs.forEach((x, i) =>
+  add({ id: `slot_machine_${i + 1}`, kind: 'slot_machine', activity: 'nohu', x, z: SB.slots.standZ, r: 1, label: 'Nổ Hũ', ry: FACE_SOUTH, data: { index: i + 1 } }),
+);
+
 export const BAR_MAP: MapDef = {
   id: 'bar',
-  bounds: { minX: -21.5, maxX: 21.5, minZ: -15.5, maxZ: 15.5 },
+  bounds: { minX: -21.5, maxX: SB.maxX - 0.5, minZ: -15.5, maxZ: 15.5 },
   spawn: { x: 0, z: 12.5, r: 1.8 },
   stations,
   colliders,
@@ -116,6 +195,7 @@ export const BAR_MAP: MapDef = {
     { id: 'vip_lounge', shape: { kind: 'box', x: 17, z: -12, w: 10, d: 8 } },
     { id: 'baucua', shape: { kind: 'circle', x: 17.5, z: 8.2, r: 4 } },
     { id: 'bar_counter_area', shape: { kind: 'box', x: -14.5, z: -2.5, w: 4, d: 17 } },
+    { id: 'casino', shape: { kind: 'box', x: midX, z: (SB.minZ + SB.maxZ) / 2, w: SB.maxX - SB.minX, d: SB.maxZ - SB.minZ } },
   ],
   roofs: [],
 };

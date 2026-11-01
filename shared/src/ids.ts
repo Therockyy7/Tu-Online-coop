@@ -32,6 +32,12 @@ export const ACTIVITY_IDS = [
   'mixology', // Thi pha chế
   'baucua', // Bầu Cua Cá Cọp
   'truthwheel', // Vòng quay sự thật
+  // Sòng Công Đức (phòng mới nối Bar) — cược bằng Công Đức thật (ctx.wager)
+  'taixiu', // Tài Xỉu chẵn lẻ (3 xúc xắc)
+  'xidach', // Xì Dách (đấu nhà cái)
+  'baicao', // Bài Cào 3 lá
+  'nohu', // Nổ Hũ — máy xèng, hũ chung cả phòng
+  'duangua', // Đua Ngựa
 ] as const;
 export type ActivityId = (typeof ACTIVITY_IDS)[number];
 
@@ -185,6 +191,18 @@ export const SFX_IDS = [
   'sizzle',
   'chant_hum',
   'gong',
+  // Sòng Công Đức + bàn DJ
+  'card_deal', // chia bài (lá bay)
+  'card_flip', // lật bài
+  'chips', // phỉnh chạm nhau
+  'dice_cup', // lắc bát xúc xắc
+  'slot_spin', // cuộn máy xèng quay
+  'slot_stop', // một cuộn dừng
+  'jackpot', // nổ hũ
+  'race_bell', // chuông xuất phát đua ngựa
+  'gallop', // vó ngựa
+  'scratch', // DJ scratch
+  'smoke_jet', // khói CO2
 ] as const;
 export type SfxId = (typeof SFX_IDS)[number];
 

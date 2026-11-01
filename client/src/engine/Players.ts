@@ -15,7 +15,7 @@ import {
   type PlayerPublic,
   type SnapMsg,
 } from '@shared/index';
-import type { AvatarHandle, AvatarLook } from '../art/api';
+import type { AvatarHandle, AvatarLook, WorldHandles } from '../art/api';
 import { createAvatar, playerLook } from '../art/avatar';
 import { kit } from '../art/kit';
 import type { NpcHandle } from './worldApi';
@@ -69,6 +69,14 @@ const GLOW_COLORS: Record<string, string> = {
 const LABEL_FADE_START = 18;
 const LABEL_HIDE = 30;
 
+/** Tường che nhãn của map (camera → chủ nhãn trên mặt bằng); xem WorldHandles.labelOccluded. */
+export type LabelOccluder = NonNullable<WorldHandles['labelOccluded']>;
+
+/** Độ mờ nhãn theo khoảng cách tới camera: rõ hẳn tới LABEL_FADE_START, mờ dần tới LABEL_HIDE. */
+function labelFade(d: number): number {
+  return d < LABEL_FADE_START ? 1 : 1 - (d - LABEL_FADE_START) / (LABEL_HIDE - LABEL_FADE_START);
+}
+
 function div(cls: string, parent?: HTMLElement): HTMLDivElement {
   const d = document.createElement('div');
   d.className = cls;
@@ -100,6 +108,11 @@ export class Players {
   firstPerson = true;
   /** Gọi mỗi sải bước của người đang đi (để tung bụi dưới chân). */
   onStep: ((x: number, z: number) => void) | null = null;
+  /**
+   * Tường che nhãn của map hiện tại (Game đặt mỗi lần dựng map): nhãn bị che thì ẩn. null = nhãn người chơi chỉ mờ
+   * theo khoảng cách, nhãn NPC luôn hiện (như ở Chùa).
+   */
+  occluder: LabelOccluder | null = null;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -328,12 +341,16 @@ export class Players {
       }
       if (!e.isLocal || !this.firstPerson) {
         const d = Math.hypot(e.x - camPos.x, e.z - camPos.z);
-        const visible = d < LABEL_HIDE;
+        // Nhãn là HTML vẽ đè canvas (không bị tường che theo độ sâu): tường của map che thì ẩn hẳn.
+        const visible = d < LABEL_HIDE && !(this.occluder?.(camPos.x, camPos.z, e.x, e.z) ?? false);
         e.label.obj.visible = visible;
         if (visible) e.label.root.style.opacity = d < LABEL_FADE_START ? '1' : String(1 - (d - LABEL_FADE_START) / (LABEL_HIDE - LABEL_FADE_START));
       }
     }
-    for (const n of this.npcs) n.update(dt, time);
+    for (const n of this.npcs) {
+      n.update(dt, time);
+      n.updateLabel(camPos.x, camPos.z, this.occluder);
+    }
   }
 
   private interpolate(e: Entry, renderTime: number, dt: number): void {
@@ -398,6 +415,10 @@ class NpcEntry {
   private speed = 0;
   private override: AnimId | null = null;
   private disposed = false;
+  /** Có tên để hiện (setLabel(null) = ẩn cả nhãn lẫn bong bóng thoại). */
+  private named = false;
+  /** Độ mờ nhãn đã ghi vào DOM — chỉ ghi lại khi đổi. */
+  private shownOpacity = 1;
 
   constructor(
     private readonly owner: Players,
@@ -465,7 +486,28 @@ class NpcEntry {
     this.label.name.textContent = text ?? '';
     this.label.sub.textContent = '';
     this.label.tag.style.display = 'none';
-    this.label.root.style.display = text ? '' : 'none';
+    // Ẩn bằng obj.visible: CSS2DRenderer tự đặt lại style.display của phần tử gốc mỗi khung hình.
+    this.named = !!text;
+    this.label.obj.visible = this.named;
+  }
+
+  /**
+   * Nhãn tên theo camera (cx, cz). Map có tường che nhãn (Bar ↔ Sòng) thì nhãn NPC mờ theo khoảng cách như nhãn người
+   * chơi và ẩn khi bị tường che; map không có (Chùa) thì giữ như cũ — luôn hiện. Không cấp phát; DOM chỉ ghi khi đổi.
+   */
+  updateLabel(cx: number, cz: number, occ: LabelOccluder | null): void {
+    let visible = this.named;
+    let opacity = 1;
+    if (visible && occ) {
+      const d = Math.hypot(this.x - cx, this.z - cz);
+      visible = d < LABEL_HIDE && !occ(cx, cz, this.x, this.z);
+      opacity = labelFade(d);
+    }
+    this.label.obj.visible = visible;
+    if (visible && opacity !== this.shownOpacity) {
+      this.shownOpacity = opacity;
+      this.label.root.style.opacity = String(opacity);
+    }
   }
 
   update(dt: number, time: number): void {

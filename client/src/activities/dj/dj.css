@@ -1,0 +1,234 @@
+/* Bàn DJ (tiền tố dj-, gói trong .dj-panel để đè kiểu .btn chung): màn "đang phát" tối kiểu bàn mixer neon trên nền
+   giấy của panel, danh sách bài 2 nhóm, nút hiệu ứng có lớp phủ đồng hồ nghỉ, 4 màu đèn, dải phím tắt. */
+.dj-panel .panel-body {
+  padding-top: 10px;
+}
+.dj-console {
+  padding: 11px 14px 10px;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 12% 0, rgba(255, 79, 216, 0.3), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(62, 242, 255, 0.18), transparent 50%),
+    linear-gradient(160deg, #1d1236, #0c0818);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 4px 0 #3a1d5c;
+  color: #fff;
+}
+.dj-status {
+  font: 800 11px var(--font-body);
+  letter-spacing: 0.12em;
+  color: #b9a7d9;
+}
+.dj-status.on {
+  color: #3ef2ff;
+  text-shadow: 0 0 8px rgba(62, 242, 255, 0.7);
+}
+.dj-title {
+  margin-top: 2px;
+  font: 800 18px/1.25 var(--font-title);
+  text-shadow: 0 0 10px rgba(255, 79, 216, 0.6);
+}
+.dj-meta {
+  margin-top: 1px;
+  font-size: 12px;
+  color: #cfc2ea;
+}
+.dj-prog {
+  position: relative;
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.dj-prog-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, #ff4fd8, #3ef2ff);
+}
+.dj-time {
+  margin-top: 4px;
+  font: 700 12px var(--font-body);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: #cfc2ea;
+}
+.dj-transport {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.dj-panel .dj-tbtn {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 17px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.dj-panel .dj-tbtn.dj-play {
+  width: 52px;
+  height: 52px;
+  font-size: 21px;
+  background: linear-gradient(135deg, #ff4fd8, #9b5cff);
+  box-shadow:
+    0 4px 0 #5a2a8a,
+    0 0 16px rgba(255, 79, 216, 0.45);
+}
+.dj-lock {
+  display: none;
+  margin-top: 10px;
+  padding: 7px 10px;
+  border-left: 4px solid #ff9f43;
+  border-radius: 10px;
+  background: #fff1dc;
+  color: #8a4b12;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.dj-lock.on {
+  display: block;
+}
+.dj-panel .locked {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+}
+.dj-sec {
+  margin: 11px 0 6px;
+  font: 800 14px var(--font-title);
+  color: #6e2c17;
+}
+.dj-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.dj-panel .dj-song {
+  display: grid;
+  gap: 1px;
+  padding: 7px 9px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  background: #fffdf7;
+  text-align: left;
+}
+.dj-song b {
+  font: 800 13px/1.2 var(--font-title);
+  color: var(--ink);
+}
+.dj-song span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.dj-panel .dj-song.on {
+  border-color: #ff4fd8;
+  background: linear-gradient(#ffe6fb, #fff);
+  box-shadow: 0 0 0 3px rgba(255, 79, 216, 0.25);
+}
+.dj-fx {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.dj-panel .dj-fxbtn {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 2px 6px;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(135deg, #9b5cff, #ff4fd8);
+  box-shadow: 0 4px 0 #5a2a8a;
+}
+.dj-fx-icon {
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+}
+.dj-fxbtn b {
+  font: 800 11.5px var(--font-body);
+  white-space: nowrap;
+}
+.dj-cd {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 10, 30, 0.62);
+  transform-origin: bottom;
+  transform: scaleY(0);
+  pointer-events: none;
+}
+.dj-cd-left {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 800 17px var(--font-title);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+.dj-panel .dj-fxbtn.cooling {
+  cursor: default;
+  box-shadow: 0 2px 0 #5a2a8a;
+  transform: translateY(2px);
+}
+.dj-panel .dj-fxbtn.nope {
+  animation: dj-nope 0.3s;
+}
+@keyframes dj-nope {
+  25% {
+    translate: -4px 0;
+  }
+  75% {
+    translate: 4px 0;
+  }
+}
+.dj-kbd {
+  padding: 0 4px;
+  border-radius: 4px;
+  font: 700 10px/1.5 var(--font-body);
+  background: rgba(0, 0, 0, 0.25);
+}
+.dj-themes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.dj-panel .dj-theme {
+  padding: 9px 4px;
+  border: 3px solid transparent;
+  border-radius: 12px;
+  color: #fff;
+  font: 800 13px var(--font-body);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.dj-panel .dj-theme.on {
+  border-color: #2b2b33;
+}
+.dj-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.dj-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.dj-keys .dj-kbd {
+  border: 1px solid var(--line);
+  background: #f6e8cc;
+  color: var(--ink);
+}

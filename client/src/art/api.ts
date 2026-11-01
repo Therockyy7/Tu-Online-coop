@@ -83,6 +83,22 @@ export interface WorldControls {
   /** DJ "Drop!": chớp mạnh, cầu disco quay nhanh vài giây. */
   drop?(): void;
   setLightTheme?(theme: 'neon' | 'gold' | 'ocean' | 'fire'): void;
+  /**
+   * Phổ nhạc thật (mỗi phần tử 0..1, dải thấp → cao, thường 20 dải) để tường LED sau DJ nhảy theo; DJ gọi mỗi khung
+   * hình khi có nhạc. Lâu không gọi (> 0,5 s) thì tường LED quay về hoạt ảnh tự chạy.
+   */
+  setSpectrum?(bands: Float32Array): void;
+  /** Nhạc DJ đang phát / đã dừng: đĩa than quay hay dừng, đèn chuyển chế độ chờ khi dừng. */
+  setMusicPlaying?(playing: boolean): void;
+  /** Chữ chạy "ĐANG PHÁT: …" trên bàn DJ; null = ẩn. */
+  setNowPlaying?(title: string | null): void;
+  /**
+   * Đèn chớp toàn quán (sàn LED, đèn quét, tường LED) trong `seconds` giây — an toàn cho người nhạy sáng: ≤ 2,5 lần/giây,
+   * tương phản thấp (pha tối giữ màu theme, pha sáng màu theme ngả trắng — không đen ↔ trắng lóa).
+   */
+  strobe?(seconds: number): void;
+  /** Khói CO2 phun lên từ trước bàn DJ (~1,5 giây). */
+  smoke?(): void;
 }
 
 /**
@@ -93,6 +109,12 @@ export interface WorldControls {
  *   'leaf_ground' (tâm khu lá rụng, mặt đất).
  * - Bar: 'dj_booth_top', 'bar_counter_top', 'baucua_table_top', 'truth_wheel_disc' (mini-game quay quanh trục Z
  *   cục bộ), 'exchange_kiosk_top', 'npc_table_top:npc_table_1' … 'npc_table_top:npc_table_6', 'dance_floor_center'.
+ * - Sòng Công Đức (vị trí tính từ SONG_BAC ở anchors.ts; đồ động của mini-game đặt vào đây):
+ *   'taixiu_table_top' · 'xidach_table_top', 'xidach_dealer', 'xidach_seat:1' … 'xidach_seat:5' (chỗ đặt bài, +Z cục bộ
+ *   hướng ra phía khách) · 'baicao_table_top', 'baicao_dealer', 'baicao_seat:1' … 'baicao_seat:6' · 'race_track'
+ *   (gốc = vạch xuất phát làn 1 trên mặt đường, +X dọc đường đua, +Z sang làn kế) · 'race_board' (mặt bảng LED, nhìn
+ *   về +Z) · 'slot_reels:slot_machine_1' … '_4' (tâm ô kính 3 cuộn, nhìn về −Z) · 'slot_lever:slot_machine_N' (khớp
+ *   cần gạt) · 'jackpot_display' (mặt bảng số trên bệ Hũ Công Đức, nhìn về −Z / lối giữa).
  */
 export type AnchorName = string;
 
@@ -122,6 +144,12 @@ export interface WorldHandles {
   readonly anchors: ReadonlyMap<AnchorName, THREE.Object3D>;
   readonly environment: WorldEnvironment;
   readonly controls: WorldControls;
+  /**
+   * Tường che nhãn tên / chữ bay (phần tử HTML của CSS2DRenderer luôn vẽ đè lên canvas, không qua bộ đệm độ sâu): true
+   * khi đoạn thẳng (ax, az) → (bx, bz) trên mặt bằng bị tường che. Engine gọi với camera → chủ nhãn, nhiều lần mỗi
+   * khung — không cấp phát. Map không có tường ngăn phòng thì để undefined (nhãn chỉ mờ theo khoảng cách như cũ).
+   */
+  readonly labelOccluded?: (ax: number, az: number, bx: number, bz: number) => boolean;
   /** Hoạt ảnh nền mỗi khung hình (dt, time tính bằng giây). */
   update(dt: number, time: number): void;
   dispose(): void;

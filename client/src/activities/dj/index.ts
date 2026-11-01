@@ -1,63 +1,31 @@
-// DJ Chiếm Sóng — phía client: cả quán phát bài theo mốc nhịp của server, đèn/sàn LED nháy mỗi phách,
-// Drop! / còi hú; DJ mở bàn DJ để đổi bài, đổi màu đèn.
-import { DJ, type DjTrackId } from '@shared/index';
-import { LIGHT_THEMES, beatIndexAt, type DjPublicState, type LightTheme } from '@shared/activities/dj';
-import type { PanelHandle } from '../../ui/api';
-import type { ActivityClientModule, ClientActivityContext } from '../types';
-
-const THEME_LABEL: Record<LightTheme, [string, string]> = {
-  neon: ['Neon', 'linear-gradient(135deg,#ff4fd8,#3ef2ff)'],
-  gold: ['Vàng son', 'linear-gradient(135deg,#ffd166,#ff9f43)'],
-  ocean: ['Đại dương', 'linear-gradient(135deg,#3ef2ff,#2f7bff)'],
-  fire: ['Lửa', 'linear-gradient(135deg,#ff3b30,#ffd60a)'],
-};
+// DJ Chiếm Sóng — phía client: cả quán nghe nhạc DJ theo trạng thái server (4 bài thu sẵn tự phát nối tiếp, 4 bài tổng
+// hợp lặp), đèn / sàn LED nháy theo phách, tường LED theo phổ nhạc thật, hiệu ứng Drop / còi / khói / đèn chớp. Bàn DJ
+// mở: ai đứng ở bàn cũng chỉnh được, mỗi lúc 1 người (server kiểm) — người đang đứng bàn thấy bảng DJ.
+import { DJ } from '@shared/index';
+import { trackInfo, type DjPublicState } from '@shared/activities/dj';
+import type { ActivityClientModule } from '../types';
+import { DjEffects } from './effects';
+import { DjMusic, inCasino } from './music';
+import { DjPanel } from './panel';
+import './dj.css';
 
 let state: DjPublicState | null = null;
-let lastBeat = -1;
-let lastDrop = 0;
-let lastHorn = 0;
-let panel: PanelHandle | null = null;
+let panel: DjPanel | null = null;
+const music = new DjMusic();
+const effects = new DjEffects();
 
-function playTrack(ctx: ClientActivityContext): void {
-  if (!state) return;
-  ctx.audio.startBeatTrack(state.trackId, state.startedAt, state.bpm);
-  ctx.world.controls.setLightTheme?.(state.theme);
+/** Đóng bảng DJ; `silent` = server đã cho rời bàn rồi (không gửi 'close' lên nữa). */
+function closePanel(silent: boolean): void {
+  const p = panel;
+  panel = null;
+  if (p && !p.closed) p.close(silent);
 }
 
-function renderPanel(ctx: ClientActivityContext): void {
-  if (!panel || panel.closed || !state) return;
-  const b = panel.body;
-  b.replaceChildren();
-  const mk = (tag: string, cls: string, text = '') => {
-    const e = document.createElement(tag);
-    e.className = cls;
-    e.textContent = text;
-    return e;
-  };
-  b.append(mk('div', 'dj-sub', 'Chọn bài cho cả quán'));
-  const tracks = mk('div', 'dj-tracks');
-  for (const t of DJ.tracks) {
-    const btn = mk('button', `dj-track ${t.id === state.trackId ? 'on' : ''}`) as HTMLButtonElement;
-    btn.append(mk('b', '', t.name), mk('span', '', `${t.bpm} BPM`));
-    btn.onclick = () => ctx.send('track', { id: t.id as DjTrackId });
-    tracks.append(btn);
-  }
-  b.append(tracks);
-  const row = mk('div', 'dj-row');
-  const drop = mk('button', 'dj-big drop', '💥 DROP!') as HTMLButtonElement;
-  drop.onclick = () => ctx.send('drop');
-  const horn = mk('button', 'dj-big horn', '📯 Còi hú') as HTMLButtonElement;
-  horn.onclick = () => ctx.send('horn');
-  row.append(drop, horn);
-  b.append(row, mk('div', 'dj-sub', 'Màu đèn'));
-  const themes = mk('div', 'dj-themes');
-  for (const th of LIGHT_THEMES) {
-    const btn = mk('button', `dj-theme ${th === state.theme ? 'on' : ''}`, THEME_LABEL[th][0]) as HTMLButtonElement;
-    btn.style.background = THEME_LABEL[th][1];
-    btn.onclick = () => ctx.send('theme', { theme: th });
-    themes.append(btn);
-  }
-  b.append(themes, mk('div', 'dj-hint', 'Mở vòng nhảy: bấm E trên sàn LED · Esc để đóng bàn DJ'));
+/** Đổi bài do người đứng bàn chọn (không phải tự sang bài khi bài thu sẵn hết) — kêu tiếng cào đĩa. */
+function manualSwitch(prev: DjPublicState, s: DjPublicState, now: number): boolean {
+  if (prev.trackId === s.trackId) return false;
+  const t = trackInfo(prev.trackId);
+  return !prev.playing || t.durationMs === 0 || now - prev.startedAt < t.durationMs - 1000;
 }
 
 export const djClient: ActivityClientModule = {
@@ -65,80 +33,73 @@ export const djClient: ActivityClientModule = {
   maps: ['bar'],
 
   mount(ctx) {
-    lastBeat = -1;
-    if (state) playTrack(ctx);
+    music.reset();
+    effects.reset();
+    if (state) {
+      music.sync(state, ctx);
+      ctx.world.controls.setLightTheme?.(state.theme);
+    }
   },
 
   unmount(ctx) {
-    ctx.audio.stopBeatTrack();
-    panel?.close();
-    panel = null;
+    music.stop(ctx);
+    closePanel(true);
+    // Vào lại Bar: runtime gọi onState với trạng thái mới nhất ngay sau mount — coi như lần đầu (không kêu cào đĩa).
+    state = null;
   },
 
   prompt(station, ctx) {
     if (station.kind !== 'dj_booth') return undefined;
-    const djPid = ctx.state.room.djPid;
     const me = ctx.me();
-    if (djPid && djPid === me?.pid) return 'Bàn DJ (bạn đang làm DJ)';
-    const name = djPid ? ctx.state.player(djPid)?.name : null;
-    return name ? `Bàn DJ — DJ ${name}` : me?.isHost ? 'Bàn DJ (Phương Trượng tạm làm DJ)' : 'Bàn DJ';
+    const cur = state?.controllerPid ?? null;
+    if (cur && cur === me?.pid) return 'Bàn DJ (bạn đang đứng bàn)';
+    if (!cur) return '🎧 Lên bàn DJ';
+    const name = state?.controllerName ?? 'Ai đó';
+    // Người giữ danh hiệu DJ (thắng vòng nhảy) chiếm lại được bàn.
+    return ctx.state.room.djPid === me?.pid ? `🎧 Chiếm lại bàn DJ (${name} đang chỉnh)` : `Bàn DJ — ${name} đang chỉnh`;
   },
 
   onState(s, ctx) {
     const prev = state;
     state = s as DjPublicState;
-    if (!prev || prev.trackId !== state.trackId || prev.startedAt !== state.startedAt || prev.bpm !== state.bpm) {
-      lastBeat = -1;
-      playTrack(ctx);
-    } else if (prev.theme !== state.theme) {
-      ctx.world.controls.setLightTheme?.(state.theme);
+    music.sync(state, ctx);
+    if (!prev || prev.theme !== state.theme) ctx.world.controls.setLightTheme?.(state.theme);
+    // Trong Sòng Công Đức tiếng cào đĩa nhỏ lại như nhạc.
+    if (prev && manualSwitch(prev, state, ctx.serverNow())) {
+      ctx.audio.play('scratch', { volume: 0.6 * (inCasino(ctx) ? DJ.casinoLevel : 1) });
     }
-    if (state.dropAt && state.dropAt !== lastDrop) {
-      if (lastDrop !== 0 || ctx.serverNow() - state.dropAt < 2000) {
-        ctx.world.controls.drop?.();
-        ctx.audio.djDrop();
-        ctx.world.shake(0.6);
-        ctx.ui.screenFx.flash('#ffffff');
-      }
-      lastDrop = state.dropAt;
-    }
-    if (state.hornAt && state.hornAt !== lastHorn) {
-      if (lastHorn !== 0 || ctx.serverNow() - state.hornAt < 2000) ctx.audio.play('airhorn', { volume: 0.7 });
-      lastHorn = state.hornAt;
-    }
-    renderPanel(ctx);
+    effects.onState(state, ctx);
+    panel?.render();
   },
 
   onOpen(data, ctx) {
     state = data as DjPublicState;
-    panel?.close();
-    panel = ctx.ui.openPanel({
-      id: 'dj',
-      title: '🎧 Bàn DJ — Chiếm Sóng',
-      width: 520,
-      className: 'dj-panel',
-      onClose: () => {
+    music.sync(state, ctx);
+    closePanel(true);
+    // Đứng đúng chỗ DJ sau bàn, quay mặt ra sàn nhảy.
+    const booth = ctx.world.map.stations.find((x) => x.kind === 'dj_booth');
+    if (booth) ctx.snapTo(booth.x, booth.z, booth.ry);
+    panel = new DjPanel(
+      ctx,
+      () => state,
+      () => {
+        // Người chơi tự đóng bảng (Esc / ✕) → rời bàn để bàn trống cho người khác.
         panel = null;
         ctx.send('close');
+        ctx.setLocalAnim(null);
       },
-    });
+    );
     ctx.setLocalAnim('dj');
-    renderPanel(ctx);
   },
 
   onClose(_reason, ctx) {
     ctx.setLocalAnim(null);
-    const p = panel;
-    panel = null;
-    p?.close();
+    closePanel(true);
   },
 
   update(_dt, ctx) {
     if (!state) return;
-    const beat = beatIndexAt(state, ctx.serverNow());
-    if (beat !== lastBeat && beat >= 0) {
-      lastBeat = beat;
-      ctx.world.controls.onBeat?.(beat, state.bpm);
-    }
+    music.update(state, ctx);
+    panel?.tick();
   },
 };

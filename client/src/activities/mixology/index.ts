@@ -1,7 +1,7 @@
 // Thi pha chế (client): bảng trạm pha chế (đơn hàng → phím 1–6 nhập nguyên liệu → lắc 8 nhịp theo bài DJ),
 // biển đơn hàng lơ lửng trên bàn khách, bảng tip; mang ly tới đúng bàn bấm E để phục vụ.
 import * as THREE from 'three';
-import { MIXOLOGY } from '@shared/index';
+import { DJ, MIXOLOGY } from '@shared/index';
 import { beatMs, type DjPublicState } from '@shared/activities/dj';
 import { recipeOf, type MixPublicState } from '@shared/activities/mixology';
 import { kit } from '../../art/kit';
@@ -21,9 +21,30 @@ const ING_NAME = Object.fromEntries(MIXOLOGY.ingredients.map((i) => [i.id, i.nam
 let mix: MixPublicState | null = null;
 let panel: PanelHandle | null = null;
 let keyHandler: ((e: KeyboardEvent) => void) | null = null;
-let work: { orderId: number; picked: string[]; shaking: boolean; deltas: number[] } | null = null;
+/** Đơn đang làm; `shakeAt` = giờ server bắt đầu lắc (neo lưới phách mặc định khi nhạc DJ dừng). */
+let work: { orderId: number; picked: string[]; shaking: boolean; deltas: number[]; shakeAt: number } | null = null;
 let markers = new Map<number, THREE.Sprite>();
 let lastBeatPulse = 0;
+
+/**
+ * Lưới phách chấm lắc: bài DJ đang phát (beat0 = một phách mạnh, kể cả bài thu sẵn); nhạc dừng hoặc chưa có bàn DJ →
+ * nhịp bài tổng hợp đầu, phách 0 = lúc bắt đầu lắc (giống Thi nhảy lùi về DJ.tracks[0]) — không chấm theo lưới của bài
+ * đã tắt tiếng; người chơi canh theo chấm nhịp trên bảng.
+ */
+function shakeBeat0(dj: DjPublicState | undefined, shakeAt: number): number {
+  return dj?.playing ? dj.beat0 : shakeAt;
+}
+
+function shakeBpm(dj: DjPublicState | undefined): number {
+  return dj?.playing ? dj.bpm : DJ.tracks[0]!.bpm;
+}
+
+/** Độ lệch (ms) của cú lắc lúc `now` so với phách gần nhất của lưới chấm lắc. */
+export function shakeDelta(dj: DjPublicState | undefined, shakeAt: number, now: number): number {
+  const bm = beatMs(shakeBpm(dj));
+  const b0 = shakeBeat0(dj, shakeAt);
+  return now - (b0 + Math.round((now - b0) / bm) * bm);
+}
 
 function tableAnchor(ctx: ClientActivityContext, table: number): THREE.Vector3 | null {
   const a = ctx.world.anchor(`npc_table_top:npc_table_${table}`);
@@ -115,7 +136,9 @@ function renderPanel(ctx: ClientActivityContext): void {
         const keys = el('div', 'mx-keys', b);
         for (const ing of MIXOLOGY.ingredients) el('div', 'mx-key', keys, `${ing.key} · ${ing.name}`);
       } else {
-        el('div', 'mx-title shake', b, `🍸 LẮC! Space đúng nhịp nhạc (${work.deltas.length}/${MIXOLOGY.shakeBeats})`);
+        const dj = ctx.state.activityState('dj') as DjPublicState | undefined;
+        const hint = dj?.playing ? 'đúng nhịp nhạc' : 'canh theo chấm nhịp';
+        el('div', 'mx-title shake', b, `🍸 LẮC! Space ${hint} (${work.deltas.length}/${MIXOLOGY.shakeBeats})`);
         el('div', `mx-beat ${performance.now() - lastBeatPulse < 120 ? 'on' : ''}`, b, '●');
       }
       return;
@@ -132,7 +155,7 @@ function renderPanel(ctx: ClientActivityContext): void {
     row.disabled = !!o.takenBy && o.takenBy !== ctx.state.me.pid;
     row.onclick = () => {
       if (!o.takenBy) ctx.send('take_order', { id: o.id });
-      work = { orderId: o.id, picked: [], shaking: false, deltas: [] };
+      work = { orderId: o.id, picked: [], shaking: false, deltas: [], shakeAt: 0 };
       renderPanel(ctx);
     };
   }
@@ -158,6 +181,7 @@ function onPanelKey(ctx: ClientActivityContext, e: KeyboardEvent): void {
       ctx.audio.play('pour', { volume: 0.4, rate: 1.5 });
       if (work.picked.length === recipe.ingredients.length) {
         work.shaking = true;
+        work.shakeAt = ctx.serverNow();
         ctx.setLocalAnim('shake');
       }
     } else {
@@ -169,14 +193,7 @@ function onPanelKey(ctx: ClientActivityContext, e: KeyboardEvent): void {
     e.preventDefault();
     e.stopPropagation();
     const dj = ctx.state.activityState('dj') as DjPublicState | undefined;
-    const now = ctx.serverNow();
-    let delta = 300;
-    if (dj) {
-      const bm = beatMs(dj.bpm);
-      const k = Math.round((now - dj.startedAt) / bm);
-      delta = now - (dj.startedAt + k * bm);
-    }
-    work.deltas.push(delta);
+    work.deltas.push(shakeDelta(dj, work.shakeAt, ctx.serverNow()));
     ctx.audio.play('shaker', { volume: 0.6 });
     if (work.deltas.length >= MIXOLOGY.shakeBeats) {
       ctx.send('mix_done', { id: work.orderId, ingredients: work.picked, deltas: work.deltas });
@@ -252,10 +269,11 @@ export const mixologyClient: ActivityClientModule = {
   update(_dt, ctx) {
     const t = performance.now() / 1000;
     for (const sp of markers.values()) sp.position.y = 2.4 + Math.sin(t * 2 + sp.id) * 0.08;
-    const dj = ctx.state.activityState('dj') as DjPublicState | undefined;
-    if (work?.shaking && dj) {
-      const bm = beatMs(dj.bpm);
-      const phase = ((ctx.serverNow() - dj.startedAt) % bm) / bm;
+    if (work?.shaking) {
+      // Chấm nhịp trên bảng theo đúng lưới chấm lắc (nhạc dừng → lưới mặc định neo lúc bắt đầu lắc).
+      const dj = ctx.state.activityState('dj') as DjPublicState | undefined;
+      const bm = beatMs(shakeBpm(dj));
+      const phase = ((((ctx.serverNow() - shakeBeat0(dj, work.shakeAt)) % bm) + bm) % bm) / bm;
       if (phase < 0.12 && performance.now() - lastBeatPulse > bm * 0.5) {
         lastBeatPulse = performance.now();
         renderPanel(ctx);
