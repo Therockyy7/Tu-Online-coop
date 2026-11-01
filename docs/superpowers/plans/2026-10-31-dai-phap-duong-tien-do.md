@@ -10,6 +10,10 @@ giữa chừng vì **chạm giới hạn phiên (session limit)** khi chạy 5 a
 > **Cập nhật 2026-10-31 ~16:00: Điện Tăng Đoàn vinh danh + bóc quẻ ĐÃ XONG** (mục 18–20): điện dựng lại + phản biện,
 > 291 lá quẻ ở 6 lĩnh vực (công cụ kiểm 0 lỗi), đã thử trong game lạy + bóc quẻ ở cả 6 ảnh, typecheck sạch, 164 test
 > pass, build OK.
+>
+> **ĐANG LÀM (2026-10-31 tối): nâng cấp nhân vật** — yêu cầu user (nguyên văn): "Nâng cấp độ họa chi tiết hơn cho nhân
+> vật, tránh bị lỗi bug áo quần, và các động tác của nhân vật trơn tru cute hơn" (kèm ảnh: Phương Trượng ngồi bồ đoàn,
+> dải cà sa vàng là mấy khối hộp chĩa ra khỏi thân, tích trượng xuyên qua mũ/đầu). Xem mục "Nâng cấp nhân vật" cuối file.
 
 ## Yêu cầu gốc của user (nguyên văn)
 
@@ -184,3 +188,129 @@ còn 3 agent build (audio, hall, yard) + 2 agent review. Dev server được b�
 - Dự án **đã có git** (commit gốc `bfa8506 Feat: Base game`, remote `origin` = GitHub `Therockyy7/Tu-Online-coop`) —
   AI không tự commit/push; thay đổi của phiên 2026-10-31 chiều đang nằm ở working tree (chưa commit). Dự án được tự
   chạy npm install/test/build.
+
+## Nâng cấp nhân vật (2026-10-31 tối — đang làm)
+
+- **Nguyên nhân lỗi áo đã xác định** (code cũ `client/src/art/avatar.ts`): dải cà sa = 2 khối hộp phẳng + 1 cung xuyến đặt
+  cố định → giữa chìm trong thân, 2 đầu chĩa ra; tràng hạt / dây chuyền vàng có bán kính nhỏ hơn thân (nằm lọt trong
+  người); miếng vá là hộp phẳng; gấu rách là các nón rời; ngồi/quỳ thì cả vạt áo lún xuống sàn; lạy thì cả "hạt đậu"
+  nghiêng cứng (không gập eo); tay 1 khúc nên chắp tay thì tay áo xuyên thân; tích trượng (tay trái, luôn thẳng đứng)
+  xuyên qua đầu khi tay đưa vào giữa; màu giày `#6e4a32` trùng bảng `BY_COLOR` của pbr.ts → dính vân gỗ theo toạ độ thế
+  giới (vân "trôi" khi đi).
+- **Kiến trúc mới** (hợp đồng do orchestrator viết, đã typecheck): `client/src/art/character/rig.ts` (hệ trục, `BODY`,
+  `PIVOT`, cây khớp `createJoints`, `Pose` + `applyPose`, `Expression`, `MatFactory`, `FaceDriver`, `MotionDriver`) và
+  `character/style.ts` (màu áo theo cấp, chuyển nguyên từ avatar.ts). Các phần: `character/body.ts` (mặt thân giải tích +
+  áo bám thân + morph `sit`), `outfit.ts`, `face.ts`, `motion.ts` (lò xo, nhịp bước, mọi AnimId, `prostrateDip`),
+  `fpHands.ts`; `avatar.ts` viết lại thành phần lắp ráp; trang xem thử `preview.html?view=avatar`.
+- **Workflow lần 1** run `wf_27ad054f-cb9` (phiên `746ab505`, script
+  `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\746ab505-5bf8-4600-8184-ab7d5f667810\workflows\scripts\tu-online-character-upgrade-wf_27ad054f-cb9.js`):
+  **chết ở bước Build** (giới hạn phiên ~18:03) — builder hình chưa ghi file nào; builder chuyển động chỉ kịp để lại stub
+  + bộ giải IK tay `solveArm` trong `motion.ts` (đã kiểm FK khớp).
+- **Lần 2 (phiên `9f85ea6a`, 2026-10-31 tối)** — orchestrator mở rộng hợp đồng `rig.ts` (đã typecheck + kiểm số bằng
+  script): tay dài 0,22 + 0,23 (0,40 cũ không chắp tay được mà không xuyên ngực — chắp tay chỉ vừa ngay dưới cằm
+  y ≈ 0,97–1,0); `REST_POSE` tay dang 0,34 (bàn tay cách vạt áo 3,1 cm); `PROFILE`/`profileR(y)` = dáng thân chuẩn (nội
+  suy Hermite đơn điệu từ 2 khối tiện cũ); `SKULL` (ellipsoid sọ + đường mắt cho tóc/mũ/kính); `SIT` + `sitDeform` /
+  `sitDeformBody` = biến dạng ngồi chung cho MỌI hình gắn khớp skirt (lớp 4 mm vẫn ngoài thân ở sit 0/0,5/1, gấu chạm
+  sàn 0,05); kiểu `Dangler`, `PartBuild`, `BuildOutfit`, `BuildHeadwear`, `ToolKind`, `HandheldBuild`; `leftBusyOf(look)`
+  trong `style.ts`; stub biên dịch được cho `outfit.ts` (thân tiện + morph sit thật), `headwear.ts`, `handheld.ts`.
+  Workflow 9 agent, tối đa 3 cùng lúc: làn A `body.ts`+`outfit.ts` · làn B `motion.ts` · làn C `headwear.ts`+`handheld.ts`
+  → `face.ts`+`fpHands.ts` → `avatar.ts`+`preview/views/avatar.ts`; rồi Integrate (+ `client/tests/character.test.ts`)
+  → Review ×2 → Fix. **Bị ngắt thì:** file nào dòng đầu còn chữ "bản tạm" (hoa hoặc thường) là chưa làm — chỉ chạy lại
+  phần đó (prompt từng agent nằm trong script lần 2). Run `wf_724e746e-1c3`, script
+  `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\9f85ea6a-e12f-432a-8f0f-7d2e94896b93\workflows\scripts\tu-online-character-v2-wf_724e746e-1c3.js`,
+  journal `...\9f85ea6a-...\subagents\workflows\wf_724e746e-1c3\journal.jsonl`; script thử của orchestrator (kiểm hợp
+  đồng, bản chép avatar.ts cũ) ở `C:\Users\LENOVO\AppData\Local\Temp\claude\D--FastDo-fastdo-server\9f85ea6a-e12f-432a-8f0f-7d2e94896b93\scratchpad\`.
+- **Lần 2 chết lúc 20:39** vì giới hạn phiên (five_hour, "resets 12:20am"). Lúc đó: `motion.ts` (M1) gần xong, đang
+  đánh bóng (tư thế quét lá + cầm chổi chưa kiểm lại); `headwear.ts` + `handheld.ts` (G2) viết xong, typecheck sạch, chưa
+  kịp kiểm số; G1 (áo/thân) **không ghi được gì** — soạn cả `body.ts` + `outfit.ts` trong 1 lượt trả lời suốt 41 phút
+  rồi chạm trần 128k token đầu ra; `face.ts`, `fpHands.ts`, `avatar.ts` chưa làm.
+- **Lần 3 (phiên `77dd951d`, 2026-10-31 ~20:50)** — orchestrator đặt sẵn bảng màu Phương Trượng trong `style.ts` (áo trong
+  vàng nghệ `#e2a535`, cà sa đỏ thẫm `#a5231b`, đường ruộng + viền kim `#f5c84c`, tay áo rộng) và stub `kasaya.ts`
+  (`buildKasaya(look, st, j, mat)`, outfit.ts gọi khi `st.sash`) để tách cà sa thành làn riêng. Workflow v3 run
+  `wf_4d0a2e56-d0d`, script
+  `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\77dd951d-1e3f-42d7-a393-fdcafe4e9e3e\workflows\scripts\tu-online-character-v3-wf_4d0a2e56-d0d.js`,
+  journal `...\77dd951d-...\subagents\workflows\wf_4d0a2e56-d0d\journal.jsonl`; scratchpad (đã chép đủ script thử của
+  lần 2: `old-avatar.ts`, `m1-harness.mts`, `g2-lib.mts`…)
+  `C:\Users\LENOVO\AppData\Local\Temp\claude\D--FastDo-fastdo-server\77dd951d-1e3f-42d7-a393-fdcafe4e9e3e\scratchpad\`.
+  3 làn, tối đa 3 agent cùng lúc: G1a `body.ts` → G1b `outfit.ts` // M1 hoàn thiện `motion.ts` → M2a `face.ts` → M2b
+  `fpHands.ts` // G2 hoàn thiện `headwear.ts`+`handheld.ts` → G3 `avatar.ts` + `preview/views/avatar.ts` → G1c
+  `kasaya.ts`; rồi Integrate (+ `client/tests/character.test.ts`) → Review ×2 → Fix. Mọi agent bị buộc ghi file từng đoạn
+  ≤ ~250 dòng. **Bị ngắt thì:** `body.ts` chưa có = G1a chưa xong; file nào dòng đầu còn "bản tạm" là chưa xong; cùng
+  phiên thì `resumeFromRunId`, khác phiên thì chép prompt từ script v3 và chỉ chạy phần thiếu.
+- **Lần 3 chết lúc 21:45** — tài khoản chạm giới hạn phiên ("resets 1:40am"). Đọc journal: **xong** G1a `body.ts`, M1
+  `motion.ts`, G2 `headwear.ts`+`handheld.ts`, G3 `avatar.ts`+`preview/views/avatar.ts` (báo cáo đầy đủ đã chép ra
+  `prev-reports.json` trong scratchpad lần 4); **chưa xong**: G1b `outfit.ts` (vẫn stub), G1c `kasaya.ts` (vẫn stub), M2b
+  `fpHands.ts` (vẫn bản cũ), M2a `face.ts` (đã viết 1.316 dòng, header còn "BẢN TẠM"; lần kiểm đầu: mí mắt cắt vào mắt ở
+  happy/laugh, mặt ~3,5k tam giác — nặng).
+- **Lần 4 (phiên `a674f938`, 2026-10-31 ~22:05)** — trước khi chạy, orchestrator thêm vào hợp đồng `rig.ts` (typecheck
+  sạch, đã kiểm số): kênh **khép vai** `Pose.lShoulder` / `rShoulder` (0..1, cuối `POSE_KEYS`; `SHOULDER_FWD` = (−0,02;
+  0; +0,07): vai trái (0,31; 0,97; 0) → (0,29; 0,97; 0,07)) vì M1 báo chắp tay/ôm hộp thì tay gần duỗi thẳng, ống tay
+  lún 5–10 cm vào ngực; `SLEEVE` = { upperR 0,07, foreR 0,066, cuffWide 0,11 } (bán kính ngoài tối đa của ống tay; mũ
+  cà sa vai trái nằm ngoài upperR ≥ 3 mm) để áo và cà sa làm song song; sửa chú thích `sitDeform` (lớp trên vạt dưới
+  phải dùng morph bám mặt `addSitMorph(geo, variant)`); thêm TUNE cho 2 kênh mới trong `motion.ts`. Workflow v4 run
+  `wf_12bea693-34d`, script
+  `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\a674f938-5556-4de7-a34f-d286d26dd88e\workflows\scripts\tu-online-character-v4-wf_12bea693-34d.js`,
+  journal `...\a674f938-...\subagents\workflows\wf_12bea693-34d\journal.jsonl`; scratchpad (đã chép đủ script thử lần
+  3 + `prev-reports.json` + `orc-shoulder.mts`)
+  `C:\Users\LENOVO\AppData\Local\Temp\claude\D--FastDo-fastdo-server\a674f938-5556-4de7-a34f-d286d26dd88e\scratchpad\`.
+  Hàng đợi 5 việc, tối đa 3 agent cùng lúc: G1b `outfit.ts`, G1c `kasaya.ts` (song song với G1b nhờ `SLEEVE`), M1b
+  (`motion.ts`: khép vai + ống tay không lún thân), M2a hoàn thiện `face.ts`, M2b `fpHands.ts`; rồi Integrate (+
+  `client/tests/character.test.ts`) → Review ×2 → Fix. **Bị ngắt thì:** file nào header còn "bản tạm" là chưa xong
+  (motion.ts thì xem journal có kết quả "Build:M1b khép vai" chưa); cùng phiên thì `resumeFromRunId`, khác phiên thì
+  chép prompt từ script v4 và chỉ chạy phần thiếu.
+- **Lần 4 chết lúc ~22:54** — tài khoản chạm giới hạn 5 giờ ("resets 2:50am"). Đọc journal: **xong** G1c `kasaya.ts`
+  (1.940 tam giác, 7 mesh) và M1b `motion.ts` (`solveArmAt` giải IK có khép vai; khép vai trong các tư thế chắp tay /
+  ôm hộp / ngồi; chắp tay hạ xuống trước ngực; `planBump` để tay không quét qua ngực khi đổi anim); **chưa xong**: G1b
+  `outfit.ts` (đã viết đủ phần A–F, đang chỉnh dây đai lủng lẳng thì bị ngắt, header còn "BẢN TẠM"), M2a `face.ts`
+  (chạy 3 phút, không ghi gì), M2b `fpHands.ts` (không ghi gì). Báo cáo đầy đủ của M1b + G1c đã chép ra
+  `v4-reports.json`. Sau đó user đã `git add` toàn bộ phần nhân vật (đang staged, chưa commit) — agent không đụng index.
+- **Lần 5 (phiên `1fe2f9b6`, 2026-10-31 khuya)** — workflow v5 run `wf_b0ea0df9-667`, script
+  `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\1fe2f9b6-1908-4197-8102-818849337aa7\workflows\scripts\tu-online-character-v5-wf_b0ea0df9-667.js`,
+  journal `...\1fe2f9b6-...\subagents\workflows\wf_b0ea0df9-667\journal.jsonl`; scratchpad (chép đủ của lần 4 +
+  `v4-reports.json`)
+  `C:\Users\LENOVO\AppData\Local\Temp\claude\D--FastDo-fastdo-server\1fe2f9b6-1908-4197-8102-818849337aa7\scratchpad\`.
+  3 agent song song: G1b hoàn thiện `outfit.ts` (kèm số đo cuối của lần 4 + yêu cầu từ M1b/G1c: vát mặt trong ống tay
+  trên để không xuyên qua cà sa, cổ tay áo rộng rủ xuống phía sau, ống tay trái vừa sát mũ cà sa, chuỗi hạt / dây chuyền
+  nằm ngoài cà sa), M2a hoàn thiện `face.ts`, M2b `fpHands.ts`; rồi Integrate (+ `client/tests/character.test.ts`) →
+  Review ×2 → Fix (tổng 7 agent). **Bị ngắt thì:** file nào header còn "bản tạm" là chưa xong; cùng phiên thì
+  `resumeFromRunId`, khác phiên thì chép prompt từ script v5 và chỉ chạy phần thiếu.
+- **Lần 5 — kết quả** (đọc journal ở phiên `17d40001`, 2026-11-01 00:15): **xong** G1b `outfit.ts`, M2a `face.ts`, M2b
+  `fpHands.ts` (header hết "bản tạm", typecheck sạch, 164 test pass). Integrate chạy 23:51 → **chết 00:12** (lỗi tài
+  khoản "Your organization has disabled Claude subscription access…"). Trước khi chết nó đã: `receiveShadow` cho áo + cà
+  sa; gộp đầu tích trượng (khoen lớn + 6 khoen nhỏ) thành 1 lưới rung quanh chân khoen, đồ treo trên gậy chỉ lắc phần
+  động (không chĩa ngang khi lạy); tắt đường may nổi cà sa; giảm chi tiết mũ Tỳ Lư / kính; gộp vành + bông mũ len; thêm
+  `client/tests` vào `vitest.config.ts` + `client/tsconfig.json`; viết `client/tests/character.test.ts` (17 test, mục
+  a/b/c/d/f, pass). **Chưa:** test e (tích trượng vs đầu) / g (mí vs mắt) / h (rò bộ nhớ setLook), đo ngân sách cuối,
+  kiểm consumers, báo cáo. Mốc 00:18: typecheck sạch, **181 test pass**.
+- **Lần 6 (phiên `17d40001`, 2026-11-01 ~00:20)** — chia 2 đợt để orchestrator xem bằng mắt ở giữa: **W1** = Integrate-A
+  (ghép nối còn lại + ngân sách + consumers; chỉ sửa src) song song Integrate-B (viết test e/g/h; chỉ sửa `client/tests`);
+  orchestrator xem thử `preview.html?view=avatar` + trong game; **W2** = Review ×2 (kèm phát hiện bằng mắt) → Fix.
+  Scratchpad (chép đủ của lần 5 + `v5-reports.json` 3 báo cáo builder + `int-partial.md` tiến độ dở của integrator):
+  `C:\Users\LENOVO\AppData\Local\Temp\claude\D--FastDo-fastdo-server\17d40001-a7af-4347-810f-666a812eba3d\scratchpad\`.
+  **Bị ngắt thì:** đọc journal W1/W2 (ghi bên dưới khi chạy) và chỉ chạy phần thiếu.
+  - W1 run `wf_64c974ec-2d1` (00:22), script
+    `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\17d40001-a7af-4347-810f-666a812eba3d\workflows\scripts\tu-online-character-v6-integrate-wf_64c974ec-2d1.js`,
+    journal `...\17d40001-...\subagents\workflows\wf_64c974ec-2d1\journal.jsonl`. Integrate-A sở hữu `client/src/**`
+    (tích trượng vs đầu, mũ vai cà sa, ống tay vs cà sa, tay góc 1 khớp áo, ngân sách từng ngoại hình, consumers, build);
+    Integrate-B sở hữu `client/tests/character.test.ts` (+ `vitest.config.ts`): test e tích trượng, g mí mắt, h rò bộ nhớ,
+    i tay góc 1, j "không gì chĩa ra khỏi thân".
+  - **W1 xong 01:03** (2 agent, 0 lỗi; báo cáo đầy đủ `v6-int-reports.json` trong scratchpad). A sửa: tay cầm gậy ra ngoài
+    khi ngồi/quỳ/lạy/đánh chuông (+0,16·sit), khi vấp (+0,6·roll), về phía gậy 0,5 → 0,7 → 0 tia xuyên vạt/mũ ở mọi
+    AnimId kể cả say 100, đầu cách cán ≥ 60 mm; chân gậy nhấc ≤ 6 cm khi đáng lẽ trượt (quét/nhảy/vấp); đồ cầm tay gộp lưới
+    theo vật liệu (`mergeHeldByMaterial`, bình hoa 22 → 6 mesh); tay góc 1: lòng cổ tay áo cùng màu viền như góc 3 + giới hạn
+    khung nhìn mềm (B bắt được tay phải rơi khỏi khung khi đổi wave→laugh); dây chuyền 48 → 40 mắt, bông mũ len nhẹ hơn.
+    Ngân sách: mọi ngoại hình gốc ≤ 40 mesh; Phương Trượng 14.287 tam giác / 39 mesh (cầm đèn: 46); 3 tổ hợp vượt ~11k 1–5 %.
+    B: `character.test.ts` 17 → **49 test** (~15 s). Kiểm cuối W1: typecheck sạch, **213 test pass**, build OK. Trong lúc
+    chạy user đã tự `git add` motion.ts / outfit.ts / headwear.ts. Orchestrator xem bằng mắt (preview + trong game phòng QATS:
+    ngồi bồ đoàn, Space lạy, góc 1 + góc 3): sạch; ghi chú `visual-qa.md` (V1 tích trượng xuyên vạt — A đã sửa, xác nhận
+    bằng `orc-staffskirt.mts` 0 điểm cắt; **V3 chế độ mờ nhìn xuyên lớp trong**: 2 dải lụa đỏ sau mũ hiện thành vệt đỏ
+    trên mặt; V2/V4 nhỏ: khuỷu/cổ tay áo gãy góc, gờ eo khi nghiêng mạnh).
+  - **W2** run `wf_f0ec71ba-285` (01:12), script
+    `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\17d40001-a7af-4347-810f-666a812eba3d\workflows\scripts\tu-online-character-v6-review-fix-wf_f0ec71ba-285.js`,
+    journal `...\17d40001-...\subagents\workflows\wf_f0ec71ba-285\journal.jsonl`: Review ×3 (hình/xuyên áo · chuyển động ·
+    góc 1 + luồng game, chỉ báo cáo) → Fix ×2 song song theo file (G: body/outfit/kasaya/headwear/handheld/face/style +
+    `client/tests/character-geometry.test.ts`; M: motion/avatar/fpHands/rig/engine + `client/tests/character-motion.test.ts`;
+    nhật ký `fixg-log.md` / `fixm-log.md` trong scratchpad) → Verify (chỉ báo cáo) → Final fix nếu còn high/medium.
+    **Bị ngắt thì:** cùng phiên `resumeFromRunId`; khác phiên thì đọc journal + 2 file nhật ký, chỉ chạy phần thiếu.
+- Sau workflow còn phải: xem thử bằng mắt ở `http://localhost:5173/preview.html?view=avatar` + trong game (đi, ngồi bồ
+  đoàn, quỳ lạy, chắp tay, cầm đồ, Phương Trượng cầm tích trượng), typecheck/test/build, cập nhật file này.
