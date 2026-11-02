@@ -26,8 +26,11 @@ export interface YTPlayer {
   getCurrentTime(): number;
   getDuration(): number;
   getPlayerState(): number;
-  /** URL trang xem của video trình phát đang giữ — iframe báo về bất đồng bộ, trễ sau lệnh nạp video mới. */
-  getVideoUrl(): string;
+  /**
+   * URL trang xem của video trình phát đang giữ — iframe báo về bất đồng bộ: ngay sau load / cue là null, rồi có thể còn
+   * 1 tin trễ mang id cũ, sau đó mới tới id mới (đo trên Chromium 2026-11-02).
+   */
+  getVideoUrl(): string | null;
   /** 0..100 (số nguyên). */
   setVolume(volume: number): void;
   mute(): void;

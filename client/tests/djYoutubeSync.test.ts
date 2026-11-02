@@ -161,8 +161,9 @@ class FakePlayer {
   readonly calls: unknown[][] = [];
   duration = 0;
   muted = false;
-  /** getVideoUrl(): iframe báo về bất đồng bộ (sau khi xử lý lệnh nạp) — test tự đặt; '' = chưa biết. */
-  videoUrl = '';
+  /** getVideoUrl() như widget thật: lệnh nạp / cue xoá (null); iframe báo lại id mới khi xử lý xong (ack / sự kiện). */
+  videoUrl: string | null = null;
+  private pendingId = '';
   private base = 0;
   private baseAt = 0;
   private running = false;
@@ -182,10 +183,18 @@ class FakePlayer {
   loadVideoById(o: YTVideoRequest): void {
     this.calls.push(['load', o]);
     this.time = o.startSeconds ?? 0;
+    this.videoUrl = null;
+    this.pendingId = o.videoId;
   }
   cueVideoById(o: YTVideoRequest): void {
     this.calls.push(['cue', o]);
     this.time = o.startSeconds ?? 0;
+    this.videoUrl = null;
+    this.pendingId = o.videoId;
+  }
+  /** Iframe đã xử lý lệnh nạp gần nhất → báo URL video mới. */
+  ack(): void {
+    this.videoUrl = `https://www.youtube.com/watch?v=${this.pendingId}`;
   }
   playVideo(): void {
     this.calls.push(['play']);
@@ -209,7 +218,7 @@ class FakePlayer {
   getPlayerState(): number {
     return -1;
   }
-  getVideoUrl(): string {
+  getVideoUrl(): string | null {
     return this.videoUrl;
   }
   setVolume(v: number): void {
@@ -233,6 +242,8 @@ class FakePlayer {
     this.opts.events.onReady?.();
   }
   state(n: number): void {
+    // Iframe báo trạng thái = đã xử lý lệnh nạp trước đó.
+    this.ack();
     const cur = this.time;
     this.running = n === YT_STATE.PLAYING;
     this.time = cur;
@@ -510,12 +521,12 @@ describe('DjYoutubeScreen — trình phát trên màn hình LED (YT.Player / DOM
     expect(m.sent).toHaveLength(1);
   });
 
-  it('lỗi đến muộn của video trước (trình phát còn báo id cũ) → không báo, nạp lại video mới 1 lần; lỗi lần 2 mới báo', async () => {
+  it('lỗi đến muộn của video trước (iframe chưa xác nhận lệnh nạp mới) → không báo, nạp lại 1 lần; lỗi lần 2 mới báo', async () => {
     const NEXT = 'aqz-KE-bpKQ';
     const m = await playing(ytState(21, BASE));
     const p = m.p;
-    p.videoUrl = `https://www.youtube.com/watch?v=${ID}`;
-    // Server đã sang video kế (máy khác báo lỗi trước), hẹn phát sau startDelayMs; lỗi của video cũ mới tới máy này.
+    // Server đã sang video kế (máy khác báo lỗi trước), hẹn phát sau startDelayMs: máy này cue → URL trình phát trống;
+    // lỗi của video cũ (iframe phát ra trước khi nhận lệnh) mới tới.
     m.push(ytState(22, m.serverNow() + DJ.youtube.startDelayMs, { videoId: NEXT }));
     const from = p.calls.length;
     p.error(150);
@@ -531,9 +542,15 @@ describe('DjYoutubeScreen — trình phát trên màn hình LED (YT.Player / DOM
     expect(m.toasts.at(-1)).toContain(youtubeErrorText(150));
     // Trình phát đã báo đúng id video đang cần → lỗi báo ngay (video kế).
     m.push(ytState(23, m.serverNow(), { videoId: ID }));
-    p.videoUrl = `https://www.youtube.com/watch?v=${ID}&t=0s`;
+    p.ack();
     p.error(101);
     expect(m.sent.at(-1)).toEqual(['yt_error', { videoId: ID, code: 101 }]);
+    // Tin trễ của iframe còn mang id cũ (URL = video trước, dạng `t=…&v=…`) → cũng là lỗi của video trước.
+    m.push(ytState(24, m.serverNow() + DJ.youtube.startDelayMs, { videoId: NEXT }));
+    p.videoUrl = `https://www.youtube.com/watch?t=5&v=${ID}`;
+    const n = m.sent.length;
+    p.error(150);
+    expect(m.sent).toHaveLength(n);
   });
 
   it('bị chặn tự phát tiếng: phát tắt tiếng + nút; cú bấm kế tiếp bật tiếng; có tiếng rồi thì gỡ nút', async () => {

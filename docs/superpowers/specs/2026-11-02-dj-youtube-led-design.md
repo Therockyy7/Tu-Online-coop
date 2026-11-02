@@ -131,8 +131,9 @@ báo → bỏ qua ở server (máy đó tự hiện lỗi — thường do chặ
   đồng bộ + hiện nút "🔇 Nhạc YouTube đang tắt tiếng — bấm để bật" (HUD, bấm được); lần bấm / gõ phím kế tiếp trong game
   thử `unMute()` + `playVideo()` (video còn chờ giờ bắt đầu thì không phát sớm — chờ tới giờ, cú bấm sau mới thử).
 - **Lỗi** (`onError`): gửi `yt_error` (server quyết đổi bài hay không) + toast tại máy "Video không phát được trên máy
-  bạn: <lý do>"; màn hình về `loading`/`idle`. Lỗi đến muộn của video trước (trình phát còn báo id cũ theo
-  `getVideoUrl()` khi máy đã sang video mới) → bỏ qua, nạp lại video mới 1 lần; lỗi lần 2 cho video đó mới tính.
+  bạn: <lý do>"; màn hình về `loading`/`idle`. Lỗi đến muộn của video trước (máy đã sang video mới mà `getVideoUrl()`
+  còn trống — widget xoá ngay khi ra lệnh nạp / cue — hoặc còn id cũ) → bỏ qua, nạp lại video mới 1 lần; lỗi lần 2 cho
+  video đó mới tính. URL đúng id video đang cần → lỗi tính ngay.
 - **Màn hình**: chưa chạy → `loading` + tên; PLAYING / BUFFERING (sau khi đã chạy) / PAUSED → `video`; không có YouTube
   → `idle`. Chữ chạy "ĐANG PHÁT" trên bàn DJ hiện tên video (cắt ~48 ký tự).
 

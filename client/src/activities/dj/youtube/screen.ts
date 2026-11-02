@@ -296,8 +296,9 @@ export class DjYoutubeScreen implements YoutubeScreenLike {
   private onError(code: number): void {
     const yt = this.want?.yt;
     if (this.disposed || !yt || yt.key !== this.loadedKey || this.errorKey === yt.key) return;
-    // Lỗi đến muộn của video trước: iframe báo lỗi trước khi nhận lệnh nạp video mới (trình phát vẫn giữ id cũ) mà máy
-    // đã sang video mới → bỏ qua, nạp lại video đang cần 1 lần; lỗi thật của video này sẽ tới lại và được tính.
+    // Lỗi đến muộn của video trước: iframe phát lỗi trước khi xử lý lệnh nạp video mới, máy đã sang video mới — lúc đó
+    // URL trình phát còn trống (widget xoá khi ra lệnh nạp / cue) hoặc còn id cũ (tin trễ) → bỏ qua, nạp lại video đang
+    // cần 1 lần; lỗi thật của video này sẽ tới lại (sau khi iframe báo đúng id) và được tính.
     const held = this.playerVideoId();
     if (held !== null && held !== yt.videoId && this.staleErrorKey !== yt.key) {
       this.staleErrorKey = yt.key;
@@ -474,11 +475,14 @@ export class DjYoutubeScreen implements YoutubeScreenLike {
     return yt.live || (this.liveLocal && yt.key === this.loadedKey);
   }
 
-  /** Id video trình phát đang giữ (theo URL iframe báo về); null = chưa biết. */
+  /**
+   * Id video trình phát đang giữ theo URL iframe báo về: '' = iframe chưa xác nhận lệnh nạp vừa gửi (URL null ngay sau
+   * load / cue, vài chục ms sau mới có); null = không hỏi được (coi như không biết).
+   */
   private playerVideoId(): string | null {
     const p = this.player;
     if (!p || typeof p.getVideoUrl !== 'function') return null;
-    return /[?&]v=([\w-]{11})/.exec(String(p.getVideoUrl() ?? ''))?.[1] ?? null;
+    return /[?&]v=([\w-]{11})/.exec(String(p.getVideoUrl() ?? ''))?.[1] ?? '';
   }
 
   /** Trình duyệt chặn phát có tiếng: phát tắt tiếng cho kịp đồng bộ + nút bật tiếng; cú bấm / phím kế tiếp thử bật. */
