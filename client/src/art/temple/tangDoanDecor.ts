@@ -1,12 +1,12 @@
 // Điện Tăng Đoàn — chi tiết trang trí: bảng màu, texture vẽ bằng canvas (bảng tên lĩnh vực, băng rôn tuyên dương đỏ chữ
-// vàng, Bảng Vàng vinh danh), pháp luân thếp vàng trên đài sen, khung vinh danh Sư Thầy (phông son, khung vàng chạm, bảng
-// tên lĩnh vực + khẩu hiệu, bảng tên, hai băng rôn, quầng sáng vàng) kèm kệ ống quẻ + khay lá quẻ + chiếu quỳ, cột son
-// đai vàng, bệ Bảng Vàng ba bậc và trụ đèn hoa sen vàng. Phần đứng yên vào nhóm tĩnh (gộp mesh), phần sáng/động vào nhóm
-// động. Mọi kích thước khớp TANG_DOAN (shared) — kệ đúng ô va chạm `shrine_table`, chiếu quỳ đúng trạm đảnh lễ.
+// vàng, Bảng Vàng vinh danh khi không treo ảnh), pháp luân thếp vàng trên đài sen, khung vinh danh Sư Thầy (phông son,
+// khung vàng chạm, bảng tên lĩnh vực + khẩu hiệu, bảng tên, hai băng rôn, quầng sáng vàng) kèm kệ ống quẻ + khay lá quẻ +
+// chiếu quỳ, cột son đai vàng, bệ Bảng Vàng ba bậc và trụ đèn hoa sen vàng. Phần đứng yên vào nhóm tĩnh (gộp mesh), phần
+// sáng/động vào nhóm động. Mọi kích thước khớp TANG_DOAN (shared) — kệ đúng ô va chạm `shrine_table`, chiếu quỳ đúng trạm.
 import * as THREE from 'three';
 import { TANG_DOAN } from '@shared/index';
 import { FORTUNE_DOMAINS, type FortuneDomain } from '../../content/fortunes/domains';
-import { GALLERY_TITLE, PORTRAIT_CENTER_Y, PORTRAIT_HEIGHT, type GalleryPhoto } from '../../content/gallery';
+import { GALLERY_TITLE, HONOUR_BOARD_PHOTO, PORTRAIT_CENTER_Y, PORTRAIT_HEIGHT, type GalleryPhoto } from '../../content/gallery';
 import { kit } from '../kit';
 import { PD, gilt, glowCard } from './phapDuongDecor';
 
@@ -251,6 +251,14 @@ function bangVangTexture(): THREE.CanvasTexture {
   });
 }
 
+/** Ảnh treo trên Bảng Vàng (tải nền, lọc như ảnh chân dung). */
+function photoTexture(url: string): THREE.Texture {
+  const t = new THREE.TextureLoader().load(url);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
 // ── Chi tiết thếp vàng ──
 
 /** Vòng cánh sen quanh trục đứng (x, z): `count` cánh dẹt ngả ra ngoài góc `tilt`, tâm vòng cao `y`, bán kính `r`. */
@@ -297,6 +305,14 @@ export function hallColumn(g: THREE.Object3D, x: number, z: number, r: number, t
 }
 
 // ── Khung vinh danh Sư Thầy ──
+
+/** Chiếu quỳ son viền vàng + bồ đoàn nghệ viền vàng, tâm (x, z), đặt trên mặt phẳng cao `y` (mặt sàn hoặc mặt thảm). */
+export function kneelMat(g: THREE.Object3D, x: number, z: number, y: number): void {
+  addBox(g, 1.04, 0.012, 0.9, mat(TD.gold, { roughness: 0.55, metalness: 0.3 }), x, y + 0.006, z, false);
+  addBox(g, 0.94, 0.014, 0.8, TD.carpet, x, y + 0.007, z, false);
+  g.add(mesh(geo.cyl(0.3, 0.34, 0.12, 20), mat(TD.saffron), { x, y: y + 0.074, z }));
+  g.add(mesh(geo.torus(0.305, 0.014, 4, 24), gilt(true), { x, y: y + 0.134, z, rx: Math.PI / 2, castShadow: false }));
+}
 
 /** Vật liệu đổi theo thời gian của một khung chân dung. */
 export interface PortraitParts {
@@ -487,19 +503,16 @@ export function portraitStation(stat: THREE.Group, dyn: THREE.Group, photo: Gall
   }
 
   // Chiếu quỳ son viền vàng + bồ đoàn nghệ có viền vàng tại đúng trạm đảnh lễ.
-  const kz = T.kneelOff;
-  addBox(stat, 1.04, 0.012, 0.9, mat(TD.gold, { roughness: 0.55, metalness: 0.3 }), 0, floorY + 0.006, kz, false);
-  addBox(stat, 0.94, 0.014, 0.8, TD.carpet, 0, floorY + 0.007, kz, false);
-  stat.add(mesh(geo.cyl(0.3, 0.34, 0.12, 20), mat(TD.saffron), { y: floorY + 0.074, z: kz }));
-  stat.add(mesh(geo.torus(0.305, 0.014, 4, 24), bright, { y: floorY + 0.134, z: kz, rx: Math.PI / 2, castShadow: false }));
+  kneelMat(stat, 0, T.kneelOff, floorY);
   return { photoMat, glowMat, pulse: 0 };
 }
 
 // ── Bệ Bảng Vàng + trụ đèn hoa sen ──
 
 /**
- * Bệ Bảng Vàng ba bậc sơn son nẹp vàng phủ kín ô va chạm `tang_doan_altar` (4,4 × 1,6, sát tường Bắc), Bảng Vàng khung
- * vàng chạm trên bệ đỡ, pháp luân trên đỉnh, cuộn mây vàng hai góc. Gốc `(x, 0, zWall)` = mặt tường Bắc phía trong.
+ * Bệ Bảng Vàng ba bậc sơn son nẹp vàng phủ kín ô va chạm `tang_doan_altar` (4,4 × 1,6, sát tường Bắc), biển "XẢ NGHIỆP" ở
+ * cổ bậc giữa, Bảng Vàng khung vàng chạm trên bệ đỡ (treo HONOUR_BOARD_PHOTO nếu có, không thì bảng chữ vinh danh), pháp
+ * luân trên đỉnh, cuộn mây vàng hai góc. Gốc `(x, 0, zWall)` = mặt tường Bắc phía trong.
  */
 export function honourDais(stat: THREE.Group, x: number, zWall: number): void {
   const g = new THREE.Group();
@@ -517,13 +530,23 @@ export function honourDais(stat: THREE.Group, x: number, zWall: number): void {
     addBox(g, w + 0.02, 0.035, 0.035, bright, 0, y1 - 0.0135, front, false);
     addBox(g, w - 0.16, 0.022, 0.012, bright, 0, (y0 + y1) / 2 - 0.01, front + 0.004, false);
   }
+  // Biển ở cổ bậc giữa (mặt bậc ở 1,204), đứng trước nẹp vàng — chỉ bồ đoàn xả nghiệp trên thảm trước bệ.
+  const sign = kit.signBoard('XẢ NGHIỆP', { width: 0.9, height: 0.14, bg: '#7a160e', border: '#f0c055', color: '#ffd166', depth: 0.015, fontScale: 0.62 });
+  sign.position.set(0, 0.32, 1.23);
+  g.add(sign);
   addBox(g, 3.56, 0.14, 0.5, bright, 0, 0.67, 0.27);
-  const bw = 3.3;
-  const bh = 2.8;
+  // Khổ bảng 3,3 × 2,8 m; treo ảnh thì co theo tỉ lệ ảnh trong khổ đó (mép dưới vẫn đặt trên bệ đỡ).
+  const photo = HONOUR_BOARD_PHOTO;
+  let bw = 3.3;
+  let bh = 2.8;
+  if (photo) {
+    bw = Math.min(bw, (bh * photo.width) / photo.height);
+    bh = (bw * photo.height) / photo.width;
+  }
   const by = 0.82 + bh / 2;
   addBox(g, bw + 0.1, bh + 0.1, 0.1, lacDeep, 0, by, 0.14);
-  const tex = bangVangTexture();
-  const boardMat = new THREE.MeshStandardMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.2, roughness: 0.5 });
+  const tex = photo ? photoTexture(photo.url) : bangVangTexture();
+  const boardMat = new THREE.MeshStandardMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: photo ? PHOTO_GLOW : 0.2, roughness: 0.5 });
   g.add(mesh(new THREE.PlaneGeometry(bw, bh), boardMat, { y: by, z: 0.193, castShadow: false }));
   frameRing(g, bw, bh, 0, 0.13, 0.12, carved, by, 0.18);
   frameRing(g, bw, bh, 0.13, 0.04, 0.1, bright, by, 0.17);

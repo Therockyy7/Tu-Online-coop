@@ -73,7 +73,7 @@ nhan        = max(1, round(goc × heSoTapNiem × heSoBuff))      (khi goc > 0)
 | Cấp | Công Đức | Áo tự động | Quyền thêm |
 |---|---|---|---|
 | Tiểu Đồng Quét Lá | 0–100 | Áo nâu sồng rách (vá) | Quét lá, chẻ củi, xách nước, phóng sinh, thiền, phụ bếp nấu cơm, kéo chuông, phụ Đại lễ |
-| Hòa Thượng Tập Sự | 101–500 | Áo lam | Vào Chánh Điện, gõ mõ tụng kinh |
+| Hòa Thượng Tập Sự | 101–500 | Áo lam | ~~Vào Chánh Điện, gõ mõ tụng kinh~~ — từ 2026-11-02 mở cho mọi cấp |
 | Tri Khách Tăng | 501–1.500 | Áo tràng nâu | Đón khách vãng lai, nhập kho đồ chay, ban phước cho Tiểu Đồng |
 | Đại Đức | 1.501–4.000 | Cà sa vàng | Chọn bài kinh + chỉnh nhịp mõ chung |
 | Thượng Tọa **[Chốt]** | 4.001+ | Cà sa vàng viền đỏ + tràng hạt | Như Đại Đức (bản gốc gộp "Đại Đức / Thượng Tọa" thành một tầng quyền) |
@@ -82,7 +82,9 @@ nhan        = max(1, round(goc × heSoTapNiem × heSoBuff))      (khi goc > 0)
 - Quyền của cấp thấp hơn luôn được giữ ở cấp cao hơn.
 - **Phương Trượng** được tính lại khi có người vào/rời phòng hoặc khi Công Đức thay đổi; bằng điểm thì ai vào phòng sớm hơn được chọn. Phương Trượng luôn có mọi quyền của các cấp khác. Đổi Phương Trượng có thông báo lớn + tiếng chuông.
 - **Thăng cấp:** banner "Thăng cấp: Hòa Thượng Tập Sự!", hiệu ứng biến hình (vòng sáng + âm thanh), đổi áo tự động, mở khóa đồ trong Tủ áo.
-- Cổng **Chánh Điện** chặn người dưới 101 Công Đức (lính canh nói "Tiểu Đồng chưa được vào Chánh Điện, đi quét lá đi con!").
+- ~~Cổng **Chánh Điện** chặn người dưới 101 Công Đức (lính canh nói "Tiểu Đồng chưa được vào Chánh Điện, đi quét lá đi con!").~~
+  **Cập nhật 2026-11-02:** bỏ cổng — mọi cấp bậc vào Chánh Điện (Đại Hùng Bảo Điện) và ngồi bồ đoàn gõ mõ tụng kinh được;
+  mở thời khóa vẫn là việc của Phương Trượng.
 
 ## 6. Bản đồ
 

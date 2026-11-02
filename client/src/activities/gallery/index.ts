@@ -3,11 +3,13 @@
 // xuống (server giữ chỗ). Đang quỳ: Space = lạy (đủ PORTRAIT_BOW.bowsPerRite lạy = 1 lễ, có Công Đức), sau mỗi lễ
 // Q = bóc quẻ — lá quẻ lời khuyên đúng lĩnh vực của vị Sư Thầy đó (rút ở client, chỉ mình thấy; lễ chưa bóc thì dồn lại,
 // tối đa MAX_DRAWS lá); F = xem ảnh lớn, E / Esc = đứng dậy (đang mở lá quẻ thì Space / E / Esc / Q cất quẻ trước).
-// Khung hình điện ảnh: mắt hạ thấp, ngẩng nhìn chân dung, thu hẹp góc nhìn, viền đen trên dưới.
-import { PORTRAIT_BOW, TANG_DOAN, type StationDef } from '@shared/index';
+// Bồ đoàn "Xả nghiệp" trước Bảng Vàng quỳ lạy y như vậy nhưng mỗi lễ chỉ bớt Tạp Niệm (XA_NGHIEP), không có quẻ; F = xem
+// ảnh treo trên Bảng Vàng.
+// Khung hình điện ảnh: mắt hạ thấp, ngẩng nhìn chân dung / Bảng Vàng, thu hẹp góc nhìn, viền đen trên dưới.
+import { PORTRAIT_BOW, TANG_DOAN, XA_NGHIEP, type StationDef } from '@shared/index';
 import type { GalleryBowEvent, GalleryOpenData, GalleryPublicState } from '@shared/activities/temple';
 import { domainOfPhoto, drawSlip, type FortuneDomain, type FortuneLevel } from '../../content/fortunes';
-import { GALLERY_PHOTOS, PORTRAIT_CENTER_Y, galleryPhotoById } from '../../content/gallery';
+import { GALLERY_PHOTOS, HONOUR_BOARD_CENTER_Y, HONOUR_BOARD_PHOTO, PORTRAIT_CENTER_Y, galleryPhotoById } from '../../content/gallery';
 import type { OverlayHandle } from '../../ui/api';
 import { fmtClock, h } from '../../ui/dom';
 import type { ActivityClientModule, ClientActivityContext } from '../types';
@@ -50,6 +52,9 @@ interface KneelUi {
 }
 let kneel: KneelUi | null = null;
 
+/** Bồ đoàn xả nghiệp trước Bảng Vàng (không phải chân dung). */
+const isXaNghiep = (station: StationDef): boolean => station.kind === 'xa_nghiep_cushion';
+
 /** Tên vị Sư Thầy ở chân dung: chú thích ảnh nếu có, không thì "Sư Thầy". */
 function teacherName(station: StationDef): string {
   const caption = galleryPhotoById(String(station.data?.photo ?? ''))?.caption;
@@ -71,6 +76,13 @@ function renderSub(k: KneelUi, ctx: ClientActivityContext): void {
   k.hint.classList.toggle('ready', k.draws > 0);
   if (performance.now() < k.noteUntil) return;
   const left = k.readyAt - ctx.serverNow();
+  if (isXaNghiep(k.station)) {
+    k.sub.textContent =
+      left > 0
+        ? `Nghiệp đã xả — lễ xả nghiệp kế tiếp sau ${fmtClock(left)}`
+        : `Lạy đủ ${PORTRAIT_BOW.bowsPerRite} lạy thành 1 lễ xả nghiệp (bớt ${-XA_NGHIEP.tapNiem} Tạp Niệm)`;
+    return;
+  }
   const topic = k.domain ? ` về ${k.domain.short}` : '';
   k.sub.textContent =
     k.draws > 0
@@ -155,10 +167,11 @@ export const galleryClient: ActivityClientModule = {
   maps: ['temple'],
 
   prompt(station, ctx) {
-    if (station.kind !== 'portrait') return undefined;
+    if (station.kind !== 'portrait' && !isXaNghiep(station)) return undefined;
     if (kneel) return null;
     const who = ctx.publicState<GalleryPublicState>()?.seats[station.id];
-    if (who && who !== ctx.me()?.pid) return 'Có người đang đảnh lễ';
+    if (who && who !== ctx.me()?.pid) return isXaNghiep(station) ? 'Có người đang xả nghiệp' : 'Có người đang đảnh lễ';
+    if (isXaNghiep(station)) return 'Quỳ lạy xả nghiệp';
     const domain = domainOfPhoto(String(station.data?.photo ?? ''));
     return `Đảnh lễ ${teacherName(station)}${domain ? ` · xin quẻ ${domain.short}` : ''}`;
   },
@@ -169,8 +182,15 @@ export const galleryClient: ActivityClientModule = {
     if (!station) return;
     cleanup(ctx);
     ctx.snapTo(station.x, station.z);
-    // Ngẩng nhìn tâm chân dung (bớt chút để thấy cả bảng lĩnh vực phía dưới).
-    ctx.faceTo(station.ry, Math.atan2(PORTRAIT_CENTER_Y - KNEEL_EYE, TANG_DOAN.kneelOff - 0.1) - 0.06);
+    const xa = isXaNghiep(station);
+    // Ngẩng nhìn tâm chân dung (bớt chút để thấy cả bảng lĩnh vực phía dưới) / tâm Bảng Vàng (mặt bảng cách tường ~0,2 m;
+    // hạ chút để cả bảng nằm giữa dải đen trên và HUD quỳ).
+    ctx.faceTo(
+      station.ry,
+      xa
+        ? Math.atan2(HONOUR_BOARD_CENTER_Y - KNEEL_EYE, TANG_DOAN.xaNghiepOff - 0.2) - 0.14
+        : Math.atan2(PORTRAIT_CENTER_Y - KNEEL_EYE, TANG_DOAN.kneelOff - 0.1) - 0.06,
+    );
     ctx.setFov(KNEEL_FOV);
     ctx.lockMovement(true);
     ctx.setLocalAnim('kneel');
@@ -178,13 +198,14 @@ export const galleryClient: ActivityClientModule = {
     const overlay = ctx.ui.openOverlay('gallery');
     overlay.el.classList.add('cine-bars');
     const root = h('div', 'act-hud gallery-hud', '', overlay.el);
-    const domain = domainOfPhoto(String(station.data?.photo ?? ''));
-    h('div', 'act-title', `🙏 ${teacherName(station)}`, root);
+    const domain = xa ? undefined : domainOfPhoto(String(station.data?.photo ?? ''));
+    h('div', 'act-title', xa ? '🙏 Xả nghiệp' : `🙏 ${teacherName(station)}`, root);
     if (domain) h('div', 'gallery-domain', `${domain.icon} ${domain.title} · ${domain.motto}`, root);
     const row = h('div', 'gallery-bows', '', root);
     const dots = Array.from({ length: PORTRAIT_BOW.bowsPerRite }, () => h('span', 'gallery-bow', '', row));
     const sub = h('div', 'act-sub', '', root);
-    const hint = h('div', 'act-hint', 'Space: lạy · Q: bóc quẻ · F: xem ảnh lớn · E / Esc: đứng dậy', root);
+    const keys = xa ? `Space: lạy${HONOUR_BOARD_PHOTO ? ' · F: xem ảnh lớn' : ''}` : 'Space: lạy · Q: bóc quẻ · F: xem ảnh lớn';
+    const hint = h('div', 'act-hint', `${keys} · E / Esc: đứng dậy`, root);
     kneel = {
       station,
       domain,
@@ -219,7 +240,8 @@ export const galleryClient: ActivityClientModule = {
     }
     if (!down || e.repeat) return mine;
     if (e.code === 'KeyQ') {
-      if (k.draws > 0) openSlip(k, ctx);
+      if (isXaNghiep(k.station)) note(k, 'Ở đây chỉ xả nghiệp thôi con — muốn bóc quẻ thì đảnh lễ các Sư Thầy hai bên.');
+      else if (k.draws > 0) openSlip(k, ctx);
       else note(k, k.bowUntil || k.bows > 0 ? 'Lạy cho đủ lễ đã con, rồi hẵng bóc quẻ.' : `Lạy đủ ${PORTRAIT_BOW.bowsPerRite} lạy thành 1 lễ rồi mới bóc quẻ nhé.`);
       return true;
     }
@@ -232,8 +254,13 @@ export const galleryClient: ActivityClientModule = {
       return true;
     }
     if (e.code === 'KeyF') {
-      ctx.audio.play('click', { volume: 0.6 });
-      ctx.ui.lightbox({ images: GALLERY_PHOTOS.map((p) => ({ url: p.url, caption: p.caption || undefined })), index: photoIndex(k.station) });
+      if (!isXaNghiep(k.station)) {
+        ctx.audio.play('click', { volume: 0.6 });
+        ctx.ui.lightbox({ images: GALLERY_PHOTOS.map((p) => ({ url: p.url, caption: p.caption || undefined })), index: photoIndex(k.station) });
+      } else if (HONOUR_BOARD_PHOTO) {
+        ctx.audio.play('click', { volume: 0.6 });
+        ctx.ui.lightbox({ images: [{ url: HONOUR_BOARD_PHOTO.url }], index: 0 });
+      }
       return true;
     }
     if (e.code === 'KeyE') {
@@ -247,23 +274,27 @@ export const galleryClient: ActivityClientModule = {
     const k = kneel;
     if (type !== 'bowed' || !k) return;
     const ev = data as GalleryBowEvent;
+    const xa = isXaNghiep(k.station);
     k.readyAt = ev.readyAt;
     k.bows = ev.rite ? PORTRAIT_BOW.bowsPerRite : ev.bows;
     k.clearAt = ev.rite ? performance.now() + 1100 : 0;
-    // Mỗi lễ (kể cả khi Công Đức đang hồi) được bóc một lá quẻ; lễ vừa thành thì bỏ dòng nhắc tạm để hiện "bấm Q" ngay.
-    if (ev.rite) {
+    // Mỗi lễ chân dung (kể cả khi Công Đức đang hồi) được bóc một lá quẻ; lễ vừa thành thì bỏ dòng nhắc tạm để hiện
+    // "bấm Q" ngay. Lễ xả nghiệp không có quẻ.
+    if (ev.rite && !xa) {
       k.draws = Math.min(MAX_DRAWS, k.draws + 1);
       k.noteUntil = 0;
     }
     renderDots(k);
     renderSub(k, ctx);
-    if (ev.rite && ev.karma > 0) {
-      // Cánh sen + ánh sáng tỏa ra trước chân dung, chân dung bừng sáng.
-      const fx = k.station.x + Math.sin(k.station.ry) * (TANG_DOAN.kneelOff - 0.4);
-      const fz = k.station.z + Math.cos(k.station.ry) * (TANG_DOAN.kneelOff - 0.4);
+    if (ev.rite && (xa ? ev.tapNiem < 0 : ev.karma > 0)) {
+      // Cánh sen + ánh sáng tỏa ra trước chân dung (chân dung bừng sáng) / sát mép bệ Bảng Vàng (mép bệ cách tường 1,6 m).
+      const reach = xa ? TANG_DOAN.xaNghiepOff - 1.8 : TANG_DOAN.kneelOff - 0.4;
+      const fx = k.station.x + Math.sin(k.station.ry) * reach;
+      const fz = k.station.z + Math.cos(k.station.ry) * reach;
       ctx.world.burst(fx, fz, 'petals', 26);
       ctx.world.burst(fx, fz, 'sparkle', 18);
-      ctx.world.controls.pulsePortrait?.(String(k.station.data?.photo ?? ''));
+      if (xa) note(k, `Đã xả nghiệp: bớt ${-ev.tapNiem} Tạp Niệm — nhẹ cả người!`);
+      else ctx.world.controls.pulsePortrait?.(String(k.station.data?.photo ?? ''));
     }
   },
 

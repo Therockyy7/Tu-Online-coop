@@ -1,6 +1,7 @@
 // Ảnh chân dung các Sư Thầy được tuyên dương trong Điện Tăng Đoàn (1–3 tường Tây, 4–6 tường Đông) — mỗi vị một lĩnh vực
-// lời khuyên. Ảnh gốc do user cung cấp, đã thu nhỏ (cạnh dài ≤ 1280px). Muốn ghi tên trên bảng tên dưới khung (và trong
-// gợi ý đảnh lễ): điền `caption`.
+// lời khuyên — và ảnh treo trên Bảng Vàng giữa điện. Ảnh gốc do user cung cấp, đã thu nhỏ (cạnh dài ≤ 1280px). Muốn ghi
+// tên trên bảng tên dưới khung (và trong gợi ý đảnh lễ): điền `caption`.
+import bangVang from './gallery/bang_vang.jpg';
 import portrait1 from './gallery/portrait_1.jpg';
 import portrait2 from './gallery/portrait_2.jpg';
 import portrait3 from './gallery/portrait_3.jpg';
@@ -28,6 +29,14 @@ export const GALLERY_TITLE = 'Tăng Đoàn Tu Online';
 export const PORTRAIT_CENTER_Y = 1.8;
 /** Chiều cao phần ảnh trong khung (m); ảnh ngang bị giới hạn rộng 1 m (chiều cao giảm theo). */
 export const PORTRAIT_HEIGHT = 1.0;
+
+/**
+ * Ảnh treo trên Bảng Vàng (bệ ba bậc sát tường Bắc), trước bảng là bồ đoàn lạy xả nghiệp. Bảng co theo tỉ lệ ảnh trong
+ * khổ 3,3 × 2,8 m. `null` = Bảng Vàng chữ (tên Tăng đoàn, "Vinh danh chư Tăng", sáu lĩnh vực).
+ */
+export const HONOUR_BOARD_PHOTO: Pick<GalleryPhoto, 'url' | 'width' | 'height'> | null = { url: bangVang, width: 1280, height: 1275 };
+/** Tâm Bảng Vàng (m): mép dưới bảng cao 0,82 m + nửa chiều cao bảng 2,8 m — người quỳ xả nghiệp ngẩng nhìn về phía này. */
+export const HONOUR_BOARD_CENTER_Y = 2.22;
 
 export const GALLERY_PHOTOS: GalleryPhoto[] = [
   { id: 'portrait_1', url: portrait1, width: 1024, height: 1024, caption: '' },

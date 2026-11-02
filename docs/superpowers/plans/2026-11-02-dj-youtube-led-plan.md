@@ -622,10 +622,10 @@ export function buildBarScreen(kit: ArtKit, themedMat: (slot: number, k: number)
 
 ## Sau 3 làn (orchestrator)
 
-- [ ] `npm run typecheck` · `npm test` · `npm run build` — sạch hết.
-- [ ] Thử trình duyệt (`npm run dev`, Vite :5173 + server :3000; kiểm cổng trống trước, không kill process lạ): vào
+- [x] `npm run typecheck` · `npm test` · `npm run build` — sạch hết.
+- [x] Thử trình duyệt (`npm run dev`, Vite :5173 + server :3000; kiểm cổng trống trước, không kill process lạ): vào
   Bar → màn hình hiện logo; đứng bàn dán link → 2 tab thấy video trên màn hình + nghe cùng đoạn; người đứng trước che
   màn hình; hàng chờ / ▶ / ✕ / ⏭; video chặn nhúng → toast; đồ họa thấp; mở Thi nhảy → về nhạc thu sẵn → hết vòng phát
   tiếp.
-- [ ] Workflow phản biện (≤ 3 agent cùng lúc) → sửa → kiểm lại.
-- [ ] Cập nhật file tiến độ + README (dòng tính năng Quán Bar), báo cáo user. Không commit.
+- [x] Workflow phản biện (≤ 3 agent cùng lúc) → sửa → kiểm lại.
+- [x] Cập nhật file tiến độ + README (dòng tính năng Quán Bar), báo cáo user. Không commit.

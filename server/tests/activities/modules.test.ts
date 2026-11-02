@@ -319,14 +319,15 @@ describe('Tụng kinh', () => {
     expect(ctx.lastState<ChantPublicState>()).toMatchObject({ sutraId: 'dai_bi', tempo: 1.15 });
   });
 
-  it('Tiểu Đồng không được ngồi gõ mõ', () => {
+  it('Tiểu Đồng cũng ngồi gõ mõ tụng kinh được', () => {
     const { ctx, instance } = mountActivity(chantModule);
     ctx.addPlayer({ pid: 'host', isHost: true, congDuc: 200 });
     ctx.addPlayer({ pid: 'td', congDuc: 0 });
     instance.onAction!(ctx.view('host'), 'start', undefined);
     ctx.placeAt('td', 'mo_cushion_3');
     instance.onInteract!(ctx.view('td'), ctx.station('mo_cushion_3'));
-    expect(ctx.lastState<ChantPublicState>().participants).toHaveLength(0);
+    expect(ctx.lastState<ChantPublicState>().participants.map((p) => p.pid)).toEqual(['td']);
+    expect(ctx.opens.map((o) => o.pid)).toEqual(['td']);
   });
 
   it('chưa có thời khóa: Phương Trượng ngồi bồ đoàn là mở thời khóa luôn', () => {

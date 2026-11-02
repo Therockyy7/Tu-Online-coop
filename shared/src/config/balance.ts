@@ -164,6 +164,14 @@ export const PORTRAIT_BOW = {
   cooldownMs: 5 * 60_000,
 } as const;
 
+/** Lạy "Xả nghiệp" ở bồ đoàn trước Bảng Vàng Điện Tăng Đoàn: lạy như đảnh lễ chân dung, mỗi lễ chỉ bớt Tạp Niệm. */
+export const XA_NGHIEP = {
+  /** Tạp Niệm giảm mỗi lễ (số âm; còn ít hơn thì về 0). Không có Công Đức, không bóc quẻ. */
+  tapNiem: -10,
+  /** Mỗi người chỉ được xả nghiệp lại sau chừng này. */
+  cooldownMs: 5 * 60_000,
+} as const;
+
 export const RELEASE = {
   cartMax: 6,
   refillMs: 20_000,
@@ -235,7 +243,6 @@ export const CHANT = {
   endBonusMax: 20,
   goodWeight: 0.6,
   minParticipantsForHaoQuang: 2,
-  minRank: 'hoa_thuong_tap_su' as RankId,
   sutras: [
     { id: 'tam_kinh', name: 'Tâm Kinh Bát Nhã', bpm: 72, beats: 64, pattern: 'quarter', arrows: 2, hold: 0.22, reverse: 0 },
     { id: 'a_di_da', name: 'Kinh A Di Đà', bpm: 84, beats: 72, pattern: 'eighths', arrows: 4, hold: 0.14, reverse: 0 },

@@ -3,7 +3,7 @@
 // đúng lúc vòng khép; nốt ngân phải giữ phím tới đuôi; cuối mỗi câu gõ Khánh (Space) đúng phách.
 // Client chấm tạm ngay bằng cùng hàm matchChantPress với server để phản hồi tức thì; combo cả đội theo server.
 import './chant.css';
-import { CHANT, RANK_NAMES, rankAtLeast, type Judgement } from '@shared/index';
+import { CHANT, type Judgement } from '@shared/index';
 import {
   CHANT_KHANH,
   chantChart,
@@ -779,7 +779,6 @@ export const chantClient: ActivityClientModule = {
     if (station.kind !== 'mo_cushion') return undefined;
     if (seated) return null;
     const me = ctx.state.me;
-    if (!me.isHost && !rankAtLeast(me.rank, CHANT.minRank)) return `Bồ đoàn (cần ${RANK_NAMES.hoa_thuong_tap_su})`;
     const phase = chant?.phase ?? 'idle';
     if (phase === 'playing' || phase === 'result') return 'Thời khóa đang diễn ra';
     if (chant?.participants.some((p) => p.cushion === station.id)) return 'Bồ đoàn có người ngồi';

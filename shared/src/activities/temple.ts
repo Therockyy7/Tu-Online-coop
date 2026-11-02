@@ -100,9 +100,9 @@ export interface MeditateOpenData {
   durationMs: number;
 }
 
-// ───────────── Điện Tăng Đoàn: đảnh lễ chân dung Sư Thầy, bóc quẻ ─────────────
+// ───────────── Điện Tăng Đoàn: đảnh lễ chân dung Sư Thầy, bóc quẻ; lạy xả nghiệp trước Bảng Vàng ─────────────
 
-/** Ai đang quỳ ở bồ đoàn chân dung nào (stationId → pid). */
+/** Ai đang quỳ ở bồ đoàn nào (chân dung hoặc xả nghiệp; stationId → pid). */
 export interface GalleryPublicState {
   seats: Record<string, string>;
 }
@@ -120,8 +120,10 @@ export interface GalleryBowEvent {
   bows: number;
   /** Vừa đủ 1 lễ. */
   rite: boolean;
-  /** Công Đức thực nhận của lễ này (0 = đang chờ hồi). */
+  /** Công Đức thực nhận của lễ này (0 = đang chờ hồi; lễ xả nghiệp luôn 0). */
   karma: number;
+  /** Tạp Niệm thực bớt của lễ này (số âm; 0 = đang chờ hồi hoặc không còn Tạp Niệm). */
+  tapNiem: number;
   readyAt: number;
 }
 

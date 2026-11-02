@@ -53,6 +53,7 @@ const KIND_ACTIVITY: Record<StationKind, string> = {
   temple_steps: 'guest',
   wardrobe: 'wardrobe',
   portrait: 'gallery',
+  xa_nghiep_cushion: 'gallery',
   sutra_cushion: 'sutra',
   exchange_kiosk: 'exchange',
   drink_counter: 'drink',
@@ -156,19 +157,15 @@ describe('dữ liệu map', () => {
     for (const s of m.stations) expect(canReach(s, s.r * 0.95), `${s.id} không tới được`).toBe(true);
   });
 
-  it('Tiểu Đồng tới được mọi trạm trừ bồ đoàn gõ mõ trong Chánh Điện', () => {
+  it('Tiểu Đồng tới được mọi trạm, kể cả bồ đoàn gõ mõ trong Chánh Điện', () => {
     const m = MAPS.temple;
     const canReach = reachable(m, tieuDong);
-    for (const s of m.stations) {
-      const expected = s.kind !== 'mo_cushion';
-      expect(canReach(s, s.r * 0.95), `${s.id}`).toBe(expected);
-    }
+    for (const s of m.stations) expect(canReach(s, s.r * 0.95), `${s.id}`).toBe(true);
   });
 
-  it('cửa Chánh Điện chặn Tiểu Đồng, cho Hòa Thượng qua', () => {
-    const m = MAPS.temple;
-    expect(resolveMove({ x: 0, z: -18 }, { x: 0, z: -24 }, m, tieuDong).z).toBeGreaterThan(-21);
-    expect(resolveMove({ x: 0, z: -18 }, { x: 0, z: -24 }, m, allPass).z).toBeCloseTo(-24, 5);
+  it('cửa Chánh Điện mở cho mọi cấp bậc (Tiểu Đồng đi thẳng vào được)', () => {
+    expect(MAPS.temple.gates).toHaveLength(0);
+    expect(resolveMove({ x: 0, z: -18 }, { x: 0, z: -24 }, MAPS.temple, tieuDong).z).toBeCloseTo(-24, 5);
   });
 
   it('dây nhung VIP chặn người không có vé', () => {
@@ -193,6 +190,7 @@ describe('dữ liệu map', () => {
     expect(count(MAPS.temple, 'meditation_cushion')).toBe(6);
     expect(count(MAPS.temple, 'water_jar')).toBe(3);
     expect(count(MAPS.temple, 'portrait')).toBe(6);
+    expect(count(MAPS.temple, 'xa_nghiep_cushion')).toBe(1);
     expect(count(MAPS.bar, 'mix_station')).toBe(4);
     expect(count(MAPS.bar, 'npc_table')).toBe(6);
   });

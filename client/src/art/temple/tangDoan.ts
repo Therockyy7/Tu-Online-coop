@@ -1,7 +1,8 @@
 // Điện Tăng Đoàn — điện tuyên dương chư Tăng còn đang tu học (thay Tăng xá cũ): trang nghiêm, hoành tráng, sáng sủa. Ngoài:
 // tường cao, mái hai tầng chồng diêm (lưỡng long chầu ngọc trên tầng trên), hiên hai cột son câu đối ca ngợi đức sáng
 // trí soi, hoành phi thếp vàng "ĐIỆN TĂNG ĐOÀN", đèn lồng đỏ. Trong: sàn đá sáng, thảm đỏ viền vàng từ hiên dẫn tới bệ
-// Bảng Vàng ba bậc (vinh danh sáu lĩnh vực, pháp luân trên đỉnh) giữa hai trụ đèn hoa sen vàng; hai hàng cột son đai vàng
+// Bảng Vàng ba bậc (treo ảnh hoặc chữ vinh danh, pháp luân trên đỉnh; trên thảm trước bệ là bồ đoàn lạy xả nghiệp)
+// giữa hai trụ đèn hoa sen vàng; hai hàng cột son đai vàng
 // (đôi rồng vàng cuốn hai cột trước bệ), xà chỉ vàng, diềm chạm thủng, trần ô cờ sen vàng, đèn chùm hoa sen, đèn lồng,
 // phướn "Tuyên Dương / Đức Trí Song Toàn / Vinh Danh". Sáu khung vinh danh Sư Thầy (3 mỗi bên tường, chi tiết ở
 // tangDoanDecor.ts); nắng xiên qua song cửa cao. Bố cục đọc từ TANG_DOAN (shared) — trùng khớp va chạm và trạm đảnh lễ.
@@ -14,7 +15,7 @@ import { addStatic, hangingLantern, verticalBoard, type TempleCtx } from './ctx'
 import { cofferTexture, coilingDragon, fretworkTexture, gilt, hangingBanners, lotusChandelier, patchTexture, radialTexture, rod, shaftTexture } from './phapDuongDecor';
 import { repPlane } from './phapDuongRoof';
 import { vietRoof } from './roof';
-import { HALO_OPACITY, PHOTO_GLOW, TD, addBox, hallColumn, honourDais, lotusLampPillar, portraitStation, stationKit, type PortraitParts } from './tangDoanDecor';
+import { HALO_OPACITY, PHOTO_GLOW, TD, addBox, hallColumn, honourDais, kneelMat, lotusLampPillar, portraitStation, stationKit, type PortraitParts } from './tangDoanDecor';
 
 const { geo, mat, mesh } = kit;
 const T = TANG_DOAN;
@@ -344,6 +345,8 @@ export function buildTangDoan(ctx: TempleCtx, sunDir: THREE.Vector3): TangDoanHa
   const boardGlow = new THREE.MeshBasicMaterial({ map: radial, color: '#ffc46b', transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false });
   dyn.add(mesh(new THREE.PlaneGeometry(6, 5), boardGlow, { x: T.x, y: 2.5, z: IN_N + 0.052, castShadow: false, receiveShadow: false }));
   honourDais(stat, T.x, IN_N);
+  // Bồ đoàn lạy xả nghiệp trên thảm đỏ (mặt thảm FLOOR_Y + 0,012), đúng trạm `xa_nghiep`.
+  kneelMat(stat, T.x, IN_N + T.xaNghiepOff, FLOOR_Y + 0.012);
   const lampHalo = new THREE.MeshBasicMaterial({ map: radial, color: '#ffcf80', transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
   for (const [x, z] of LAMP_PILLARS) lotusLampPillar(stat, dyn, x, z, bulb, lampHalo);
   for (const [s, text] of [

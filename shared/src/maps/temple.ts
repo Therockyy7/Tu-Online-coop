@@ -1,6 +1,5 @@
 // Bản đồ Chùa (80 × 80 m). X → Đông, Z → Nam (về phía camera). Nguồn sự thật cho client + server.
 // Sơ đồ tổng quát: spec mục 6.1.
-import { GATE_MESSAGES } from '../config/text';
 import { FLOWER_NAMES, FRUIT_NAMES } from '../config/text';
 import type { FlowerColor, FruitId } from '../ids';
 import { headingOf } from '../util/math';
@@ -121,7 +120,8 @@ colliders.push(
 
 // ── Điện Tăng Đoàn (điện tuyên dương chư Tăng còn đang tu học, thay Tăng xá cũ): cửa giữa mặt Nam, 2 hàng cột son, ──
 // 3 chân dung Sư Thầy mỗi bên tường Tây/Đông, trước mỗi chân dung có kệ ống quẻ + bồ đoàn để đảnh lễ rồi bóc quẻ;
-// bệ Bảng Vàng vinh danh sát tường Bắc. (Tên hằng/nhãn va chạm `shrine*`, `tang_doan_altar`, `crane` giữ từ bản cũ.)
+// bệ Bảng Vàng sát tường Bắc, trước bệ (trên thảm) là bồ đoàn lạy "Xả nghiệp". (Tên hằng/nhãn va chạm `shrine*`,
+// `tang_doan_altar`, `crane` giữ từ bản cũ.)
 /** Bố cục Điện Tăng Đoàn — dùng chung cho va chạm (ở đây) và dựng hình (client). */
 export const TANG_DOAN = {
   x: 31,
@@ -142,6 +142,8 @@ export const TANG_DOAN = {
   shrineTable: { d: 0.6, w: 1.5 },
   /** Từ mặt tường trong tới chỗ quỳ. */
   kneelOff: 1.55,
+  /** Từ mặt tường Bắc phía trong tới bồ đoàn lạy xả nghiệp (giữa thảm, lùi khỏi bệ để khi quỳ thấy trọn Bảng Vàng). */
+  xaNghiepOff: 3.8,
   /** Cột hiên trước cửa. */
   porchX: 2.4,
   porchZ: -23.6,
@@ -190,6 +192,17 @@ export const TANG_DOAN = {
       });
     }),
   );
+  // Bồ đoàn "Xả nghiệp" giữa thảm đỏ trước bệ Bảng Vàng, nhìn về Bảng Vàng.
+  add({
+    id: 'xa_nghiep',
+    kind: 'xa_nghiep_cushion',
+    activity: 'gallery',
+    x: T.x,
+    z: T.zNorth + T.wall / 2 + T.xaNghiepOff,
+    r: 0.9,
+    label: 'Lạy xả nghiệp',
+    ry: FACE_NORTH,
+  });
 }
 
 // ── Tủ áo (sát mặt tiền Điện Tăng Đoàn, bên phải cửa) ──
@@ -483,14 +496,8 @@ export const TEMPLE_MAP: MapDef = {
   spawn: { x: 0, z: 30, r: 3 },
   stations,
   colliders,
-  gates: [
-    {
-      id: 'chanh_dien_door',
-      box: { x: 0, z: -21, w: 6, d: 0.6 },
-      require: 'chanh_dien',
-      message: GATE_MESSAGES.chanhDien,
-    },
-  ],
+  // Cửa Chánh Điện mở cho mọi cấp bậc (ai cũng vào ngồi bồ đoàn gõ mõ tụng kinh được) — không đặt cổng.
+  gates: [],
   zones: [
     { id: 'chanh_dien', shape: { kind: 'box', x: 0, z: -29, w: 22, d: 16 } },
     { id: 'kitchen', shape: { kind: 'box', x: -30, z: -28, w: 14, d: 12 } },

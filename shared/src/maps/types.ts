@@ -37,6 +37,7 @@ export const STATION_KINDS = [
   'temple_steps',
   'wardrobe',
   'portrait',
+  'xa_nghiep_cushion',
   'sutra_cushion',
   // Bar
   'exchange_kiosk',

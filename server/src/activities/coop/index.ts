@@ -1,6 +1,6 @@
 // Co-op ở Chùa (server): Công phu tụng kinh — gõ mõ đồng điệu (7.7) và Thỉnh Đại Hồng Chung (7.8).
 import { z } from 'zod';
-import { BELL, CHANT, rankAtLeast, rankIndex, type Judgement, type Pid } from '@shared/index';
+import { BELL, CHANT, rankIndex, type Judgement, type Pid } from '@shared/index';
 import {
   bellPower,
   bellQuality,
@@ -45,7 +45,6 @@ function createChant(ctx: ActivityContext): ActivityInstance {
     s.participants = [...chanters.values()].map((c) => ({ pid: c.pid, name: c.name, cushion: c.cushion }));
     ctx.setState({ ...s, participants: [...s.participants] });
   };
-  const eligible = (p: ServerPlayerView) => p.isHost || rankAtLeast(p.rank, CHANT.minRank);
 
   function pickChooser(): Pid | null {
     const senior = ctx
@@ -65,7 +64,7 @@ function createChant(ctx: ActivityContext): ActivityInstance {
     publish();
     ctx.fx({ type: 'sound', id: 'bell_big' });
     ctx.fx({ type: 'banner', title: '🔔 Bắt đầu thời khóa tụng kinh', sub: 'Vào Chánh Điện, ngồi bồ đoàn bấm E (20 giây)', tone: 'gold', big: true });
-    ctx.chatSystem(`🔔 ${p.name} bắt đầu thời khóa tụng kinh. Từ Hòa Thượng Tập Sự trở lên vào Chánh Điện ngồi bồ đoàn!`);
+    ctx.chatSystem(`🔔 ${p.name} bắt đầu thời khóa tụng kinh. Mọi người vào Chánh Điện ngồi bồ đoàn!`);
     cancel = ctx.setTimeout(startPlaying, CHANT.lobbyMs);
   }
 
@@ -157,7 +156,6 @@ function createChant(ctx: ActivityContext): ActivityInstance {
     onInteract(p, station) {
       if (station.kind !== 'mo_cushion') return;
       if (s.phase === 'playing' || s.phase === 'result') return ctx.toast(p.pid, 'Thời khóa đang diễn ra, chờ lượt sau nhé.', 'info');
-      if (!eligible(p)) return ctx.toast(p.pid, 'Từ Hòa Thượng Tập Sự trở lên mới ngồi gõ mõ được.', 'warn');
       if (chanters.has(p.pid)) return;
       if ([...chanters.values()].some((c) => c.cushion === station.id)) return ctx.toast(p.pid, 'Bồ đoàn này có người ngồi rồi.', 'warn');
       chanters.set(p.pid, { pid: p.pid, name: p.name, cushion: station.id, hits: new Map(), holds: new Map(), stray: false, perfect: 0, good: 0, points: 0 });

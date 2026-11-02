@@ -32,8 +32,8 @@ giới hạn phiên → workflow chạy tối đa ~3 agent cùng lúc; bị ng�
 | 5 | Workflow Build — 3 làn: S server · R màn hình 3D + renderer · C bàn DJ client | ✅ Xong (run `wf_88710619-ade`) | báo cáo làn: scratchpad phiên cũ `build-report-<S\|R\|C>.json`, `lanes\<S\|R\|C>.md` |
 | 6 | Typecheck / toàn bộ test / build | ✅ typecheck sạch, 547/547 test (42 file), build OK | — |
 | 7 | Thử trong trình duyệt (2 tab) | ✅ Xong — xem "Nhật ký" 2026-11-02 ~10:10 | — |
-| 8 | Workflow phản biện + sửa | ⏳ đang làm | — |
-| 9 | Kiểm cuối + cập nhật file này + báo cáo user | ⬜ | — |
+| 8 | Workflow phản biện + sửa | ✅ 5 phát hiện (đều nhẹ) → sửa cả 5, có test — xem "Nhật ký" ~11:00 | `screen.ts`, `ytApi.ts`, `dj/youtube.ts`, `balance.ts`, `bar/index.ts` + test |
+| 9 | Kiểm cuối + cập nhật file này + báo cáo user | ✅ typecheck sạch, 551/551 test, build OK; README thêm dòng YouTube | — |
 
 Typecheck sau bước 3 (lỗi CHỜ làn sửa, đúng dự kiến): `server/src/activities/dj/index.ts` thiếu `yt`/`ytQueue` (làn S);
 `client/src/engine/Game.ts` thiếu `world.css3d` (làn R); fixture `client/tests/djartPanel.test.ts`, `djMusic.test.ts`
@@ -73,3 +73,31 @@ thiếu `yt`/`ytQueue` (làn C).
   dò tạm (`_review_*` / `_verify_*`, tự xoá). Script:
   `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\9ab9eb11-45ee-43d9-b3dd-064ebcf1e601\workflows\scripts\tu-online-dj-youtube-review-wf_5cf3b5a4-29b.js`;
   journal: `C:\Users\LENOVO\.claude\projects\D--FastDo-fastdo-server\9ab9eb11-45ee-43d9-b3dd-064ebcf1e601\subagents\workflows\wf_5cf3b5a4-29b\journal.jsonl`.
+- 2026-11-02 ~11:00 — **Phản biện xong** (5 agent, ~1,4M token): 5 phát hiện, không có lỗi nặng; 2 cái có agent kiểm
+  chứng xác nhận (hạ xuống nhẹ), 3 cái nhẹ. **Đã sửa cả 5** (test viết trước, đỏ → xanh):
+  1. Video dài > 6 giờ bị cắt ở mốc 30 s kèm lý do sai → `DJ.youtube.maxDurationMs` 6 → 13 giờ (YouTube cho tải lên 12
+     giờ); test 12b (video 10 giờ phát trọn), test 12 dùng `maxDurationMs + 1`.
+  2. Lỗi `onError` đến muộn của video trước bị tính cho video mới (có thể làm cả quán bỏ video tốt) → `screen.ts` hỏi
+     `getVideoUrl()`: trống (widget xoá ngay khi load / cue) hoặc id khác → bỏ qua, nạp lại 1 lần; lỗi lần 2 mới tính.
+     **Đo thật trên Chromium**: sau `loadVideoById` / `cueVideoById` URL = null, rồi có thể còn 1 tin trễ mang id cũ
+     (`t=5&v=<cũ>`), ~50 ms sau mới tới id mới; `seekTo` / `pause` / `play` không xoá URL. FakePlayer trong test mô phỏng
+     đúng vậy (`ack()`).
+  3. Kết quả oEmbed bị từ chối đệm vĩnh viễn (video đổi sang công khai vẫn bị chặn tới khi khởi động lại server) → chỉ
+     đệm kết quả 200; test đệm tách 2 ca.
+  4. Tia laser Drop: hình trụ có tâm ở giữa nên nửa sau cắt mép trên video; gốc nâng lên 5,52 m làm tia chỉ còn ~1,5 m
+     → tia bắt đầu đúng ở gốc (`translate(0, 15, 0)`) + `rotation.order = 'YXZ'` (sửa luôn lỗi có từ trước: 10 tia
+     trùng nhau, giờ xòe quạt phía trên màn hình). Đã xem bằng mắt khi bấm Drop: quạt tia, không vạch qua video.
+  5. Đang bị chặn tiếng mà video mới còn chờ giờ bắt đầu: cú bấm / lượt kiểm lại / `onAutoplayBlocked` phát sớm rồi giật
+     về đầu → chờ hẹn giờ, không `playVideo()` khi còn `startTimer`.
+  Spec cập nhật theo (mục 1, 3, 4). Kiểm cuối: `npm run typecheck` sạch, `npx vitest run` 551/551 (42 file),
+  `npm run build` OK. Server dev (`npm run dev`, bật nền từ phiên này) tự nạp lại sau khi sửa file server — cổng 3000
+  vẫn sống (`/healthz` ok). **Chưa commit** (user tự commit).
+
+## Còn mở (cho user / phiên sau)
+
+- Chưa thử được trên trình duyệt thật: video bị hãng đĩa chặn nhúng (lỗi 101/150 — có test giả, phần sửa ở mục 2 dựa
+  trên hành vi `getVideoUrl()` đã đo), trình duyệt chặn tự phát tiếng (trình duyệt trong app cho phát), livestream, âm
+  lượng trong Sòng Công Đức, Chrome thật ngoài app (hiệu năng iframe + WebGL).
+- Đổi chất lượng đồ họa lúc đang ở Bar: khung iframe giữ cỡ cũ tới lần vào Bar sau.
+- Đã chấp nhận (spec mục 10/11): hàng chờ có thể tạm 11/10 khi Thi nhảy chen ngang; máy khách bất kỳ báo `yt_meta` đầu
+  tiên được tin; điều khoản YouTube là vùng xám.

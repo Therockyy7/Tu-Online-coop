@@ -209,7 +209,6 @@ export const THOUGHT_WORDS = [
 ];
 
 export const GATE_MESSAGES = {
-  chanhDien: 'Tiểu Đồng chưa được vào Chánh Điện, đi quét lá đi con!',
   vip: 'Khu VIP — cần Vé VIP mới được vào.',
 };
 
