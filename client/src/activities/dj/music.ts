@@ -1,11 +1,15 @@
 // Nhạc DJ phía client: phát đúng bài, đúng giây theo trạng thái server — bài thu sẵn bám giờ server liên tục, bài tổng
 // hợp lặp theo lưới phách; nhỏ lại trong Sòng Công Đức; phách → đèn / sàn LED; phổ nhạc thật → tường LED; Drop tự bắn
 // ở mốc drop đã đo. Chỉ gọi audio khi trạng thái phát đổi (bài / mốc bắt đầu / dừng) hoặc mức to đổi — không mỗi khung.
-import { DJ, inZone, type DjTrackId } from '@shared/index';
-import { beat0At, beatMs, trackInfo, type DjPublicState } from '@shared/activities/dj';
+// Video YouTube (spec 2026-11-02-dj-youtube-led-design.md): một nguồn nhạc tại một lúc — tắt hẳn bài thu sẵn / tổng
+// hợp, trình phát YouTube trên màn hình LED lo tiếng + hình; đèn nháy theo nhịp danh nghĩa, không Drop tự động.
+import { DJ, inZone, sanitizeTitle, type DjTrackId } from '@shared/index';
+import { beat0At, beatMs, djSourceKey, trackInfo, type DjPublicState } from '@shared/activities/dj';
 import type { RecordedOptions } from '../../audio/api';
 import { djTrackUrl } from '../../content/djTracks';
 import type { ClientActivityContext } from '../types';
+import { DjYoutubeScreen, type CreateYoutubeScreen, type YoutubeScreenLike } from './youtube/screen';
+import { playAt } from './youtube/sync';
 
 /** Số dải phổ gửi cho tường LED. */
 const BANDS = 20;
@@ -13,10 +17,12 @@ const BANDS = 20;
 const DROP_GAP_MS = 1000;
 /** Kiểm chỗ đứng (đổi mức to khi vào / ra Sòng Công Đức) cách nhau ngần này (ms). */
 const ZONE_CHECK_MS = 250;
+/** Chữ chạy "ĐANG PHÁT" trên bàn DJ: tên video YouTube cắt còn ngần này ký tự. */
+const MARQUEE_TITLE_MAX = 48;
 
 export class DjMusic {
   private readonly bands = new Float32Array(BANDS);
-  /** Trạng thái phát đã áp vào audio: `bài|mốc bắt đầu|đang phát`. */
+  /** Trạng thái phát đã áp vào audio: `nguồn|mốc bắt đầu|đang phát` (nguồn = djSourceKey: bài có sẵn / yt:<key>). */
   private applied = '';
   /** Bài thu sẵn đang mở trong audio + tùy chọn đã gửi (đổi mức to phải gửi lại đúng tùy chọn đó). */
   private url: string | null = null;
@@ -29,6 +35,15 @@ export class DjMusic {
   private lastBeat = -1;
   /** Vị trí trong bài (ms) ở khung trước để bắt mốc drop; NaN = chưa có (vừa đổi bài / vừa vào quán). */
   private lastPos = Number.NaN;
+  /** Trình phát YouTube trên màn hình LED — tạo lười ở lần đầu gặp video, hủy khi rời Bar. */
+  private screen: YoutubeScreenLike | null = null;
+  /** Trạng thái server mới nhất (trình phát đọc thời lượng / livestream đổi mà không mở lại nguồn). */
+  private last: DjPublicState | null = null;
+
+  /** `createScreen`: tạo trình phát YouTube (test tiêm bản giả). */
+  constructor(
+    private readonly createScreen: CreateYoutubeScreen = (ctx, getState) => new DjYoutubeScreen(ctx, getState),
+  ) {}
 
   /** Quên những gì đã áp (vào lại Bar): lần sync sau phát lại từ đầu. */
   reset(): void {
@@ -38,18 +53,33 @@ export class DjMusic {
     this.synth = false;
     this.lastBeat = -1;
     this.lastPos = Number.NaN;
+    this.last = null;
   }
 
-  /** Trạng thái server mới: đổi bài / mốc bắt đầu / dừng thì phát lại cho khớp; còn lại giữ nguyên. */
+  /** Trạng thái server mới: đổi nguồn / mốc bắt đầu / dừng thì phát lại cho khớp; còn lại giữ nguyên. */
   sync(s: DjPublicState, ctx: ClientActivityContext): void {
-    const key = `${s.trackId}|${s.startedAt}|${s.playing}`;
+    this.last = s;
+    const key = `${djSourceKey(s)}|${s.startedAt}|${s.playing}`;
     if (key === this.applied) return;
     this.applied = key;
     this.lastBeat = -1;
     this.lastPos = Number.NaN;
-    const t = trackInfo(s.trackId);
     const controls = ctx.world.controls;
     controls.setMusicPlaying?.(s.playing);
+    if (s.yt) {
+      controls.setNowPlaying?.(s.playing ? sanitizeTitle(s.yt.title, MARQUEE_TITLE_MAX) : null);
+      // Một nguồn nhạc tại một lúc: tắt hẳn bài thu sẵn / bài tổng hợp, trình phát YouTube lo phần tiếng.
+      if (this.url) ctx.audio.setRecorded(null, 0);
+      this.url = null;
+      this.opts = null;
+      this.stopSynth(ctx);
+      this.screen ??= this.createScreen(ctx, () => this.last);
+      this.screen.apply(s);
+      return;
+    }
+    // Rời YouTube: dừng video TRƯỚC khi mở bài có sẵn (không chồng hai nguồn).
+    this.screen?.stop();
+    const t = trackInfo(s.trackId);
     controls.setNowPlaying?.(s.playing ? t.name : null);
     // Cùng bài phát lại / phát tiếp / dừng: tắt hẳn bài đang mở để thẻ audio mới tua đúng giây theo mốc mới.
     if (this.url) ctx.audio.setRecorded(null, 0);
@@ -79,6 +109,19 @@ export class DjMusic {
   update(s: DjPublicState, ctx: ClientActivityContext): void {
     const controls = ctx.world.controls;
     if (ctx.audio.musicBands(this.bands)) controls.setSpectrum?.(this.bands);
+    if (s.yt) {
+      this.screen?.update();
+      // Video không có số đo nhịp: đèn / sàn LED nháy theo lưới danh nghĩa (beat0 / bpm của server) từ lúc video vào
+      // bài; không Drop tự động (mốc drop là của bài thu sẵn). Phổ iframe không đo được — tường LED tự chạy hoạt ảnh.
+      const now = ctx.serverNow();
+      if (!s.playing || now < playAt(s.yt, s.startedAt)) return;
+      const beat = Math.floor((now - s.beat0) / beatMs(s.bpm));
+      if (beat >= 0 && beat !== this.lastBeat) {
+        this.lastBeat = beat;
+        controls.onBeat?.(beat, s.bpm);
+      }
+      return;
+    }
     if ((this.url || this.synth) && performance.now() - this.zoneCheckAt > ZONE_CHECK_MS) {
       this.zoneCheckAt = performance.now();
       const lv = this.levelAt(ctx);
@@ -119,10 +162,12 @@ export class DjMusic {
     }
   }
 
-  /** Rời Bar / thoát: tắt nhạc DJ (bài thu sẵn lẫn bài tổng hợp). */
+  /** Rời Bar / thoát: tắt nhạc DJ (bài thu sẵn, bài tổng hợp, hủy trình phát YouTube). */
   stop(ctx: ClientActivityContext): void {
     if (this.url) ctx.audio.setRecorded(null, 0);
     this.stopSynth(ctx);
+    this.screen?.dispose();
+    this.screen = null;
     this.reset();
   }
 

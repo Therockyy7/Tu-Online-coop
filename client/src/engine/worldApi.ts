@@ -37,9 +37,28 @@ export type BurstKind =
   | 'steam'
   | 'coins';
 
+/**
+ * Lớp CSS3D nằm DƯỚI canvas WebGL (cùng camera, trong #stage): phần tử HTML thật (khung YouTube) đặt theo phối cảnh 3D,
+ * chỉ lộ ra ở chỗ map "đục lỗ" trong suốt trên canvas (màn hình LED sân khấu ở chế độ 'video'). Canvas luôn đè lên nên
+ * phần tử trong lớp này không nhận chuột / bàn phím.
+ */
+export interface Css3dLayer {
+  /** Cảnh riêng chứa CSS3DObject (không phải cảnh 3D chính); gỡ CSS3DObject khỏi đây thì phần tử bị xoá khỏi DOM. */
+  readonly scene: THREE.Scene;
+  /**
+   * true = vẽ lớp CSS3D mỗi khung (engine gọi sau cảnh WebGL). Chỉ bật khi màn hình đang trong tầm nhìn và đang chiếu
+   * video — tắt thì phần tử giữ nguyên vị trí cũ (bị canvas đục che), đỡ tốn công trình duyệt vẽ lại khung YouTube.
+   */
+  setLive(live: boolean): void;
+  /** Vẽ ngay 1 lần: đưa phần tử mới thêm vào DOM (YT.Player cần phần tử đã nằm trong trang trước khi tạo). */
+  flush(): void;
+}
+
 export interface WorldApi {
   readonly scene: THREE.Scene;
   readonly camera: THREE.Camera;
+  /** Lớp CSS3D dưới canvas (khung YouTube của màn hình LED Bar). */
+  readonly css3d: Css3dLayer;
   /** Map hiện tại. */
   readonly map: MapDef;
   /** Phần dựng hình của map hiện tại (trạm, neo, điều khiển). */

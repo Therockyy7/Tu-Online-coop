@@ -99,6 +99,16 @@ export interface WorldControls {
   strobe?(seconds: number): void;
   /** Khói CO2 phun lên từ trước bàn DJ (~1,5 giây). */
   smoke?(): void;
+  /**
+   * Màn hình LED sân khấu (BAR_SCREEN, neo 'video_screen'):
+   * - 'idle': hình nền club (logo NIẾT BÀN CLUB + "Dán link YouTube ở bàn DJ").
+   * - 'loading': "Đang tải: <title>" — đã có video YouTube nhưng trình phát chưa chạy (đang tải / chờ giờ bắt đầu / bị
+   *   chặn tự phát tiếng mà chưa bật được).
+   * - 'video': mặt màn hình thành lỗ trong suốt (MeshBasicMaterial đen, opacity 0, NoBlending, fog / toneMapped false) để
+   *   khung YouTube thật ở lớp CSS3D dưới canvas hiện qua; người / vật đứng trước vẫn che được.
+   * Chỉ gọi khi chế độ hoặc tên đổi (vẽ lại canvas), không mỗi khung.
+   */
+  setVideoScreen?(mode: 'idle' | 'loading' | 'video', title?: string | null): void;
 }
 
 /**
@@ -108,7 +118,9 @@ export interface WorldControls {
  *   'cutting_board_top', 'flower_table_top', 'lamp_table_top', 'storage_door', 'gate_wait' (chỗ khách đứng chờ),
  *   'leaf_ground' (tâm khu lá rụng, mặt đất).
  * - Bar: 'dj_booth_top', 'bar_counter_top', 'baucua_table_top', 'truth_wheel_disc' (mini-game quay quanh trục Z
- *   cục bộ), 'exchange_kiosk_top', 'npc_table_top:npc_table_1' … 'npc_table_top:npc_table_6', 'dance_floor_center'.
+ *   cục bộ), 'exchange_kiosk_top', 'npc_table_top:npc_table_1' … 'npc_table_top:npc_table_6', 'dance_floor_center',
+ *   'video_screen' (tâm mặt màn hình LED sân khấu = BAR_SCREEN; +Z cục bộ hướng ra khán giả; mặt rộng BAR_SCREEN.w ×
+ *   cao BAR_SCREEN.h — DJ đặt khung YouTube ở lớp CSS3D đúng tại đây, scale 1 đơn vị = 1 m).
  * - Sòng Công Đức (vị trí tính từ SONG_BAC ở anchors.ts; đồ động của mini-game đặt vào đây):
  *   'taixiu_table_top' · 'xidach_table_top', 'xidach_dealer', 'xidach_seat:1' … 'xidach_seat:5' (chỗ đặt bài, +Z cục bộ
  *   hướng ra phía khách) · 'baicao_table_top', 'baicao_dealer', 'baicao_seat:1' … 'baicao_seat:6' · 'race_track'

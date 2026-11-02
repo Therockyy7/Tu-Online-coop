@@ -1,8 +1,9 @@
-// Map Quán Bar "Niết Bàn Club": sàn LED 8×6 nháy theo nhịp, DJ booth + loa nảy + tường LED, quầy bar + kệ rượu
-// phát sáng, khu VIP dây nhung, vòng quay sự thật, bàn Bầu Cua, quầy đổi Đức, cửa Hồi Sơn, giàn đèn quét,
-// quả cầu disco, khách NPC nhún nhảy; tường Đông chừa cửa thông sang phòng Sòng Công Đức (casino.ts). Điều khiển:
-// onBeat / drop / setLightTheme, setSpectrum (tường LED theo phổ nhạc) / setMusicPlaying / setNowPlaying (chữ chạy
-// trên bàn DJ) / strobe (đèn chớp) / smoke (khói CO2).
+// Map Quán Bar "Niết Bàn Club": sàn LED 8×6 nháy theo nhịp, DJ booth + loa nảy + màn hình LED sân khấu (screen.ts) giữa
+// tường LED chia đôi, quầy bar + kệ rượu phát sáng, khu VIP dây nhung, vòng quay sự thật, bàn Bầu Cua, quầy đổi Đức, cửa
+// Hồi Sơn, giàn đèn quét, quả cầu disco, khách NPC nhún nhảy; tường Đông chừa cửa thông sang phòng Sòng Công Đức
+// (casino.ts). Điều khiển: onBeat / drop / setLightTheme, setSpectrum (tường LED theo phổ nhạc) / setMusicPlaying /
+// setNowPlaying (chữ chạy trên bàn DJ) / strobe (đèn chớp) / smoke (khói CO2) / setVideoScreen (màn hình LED: hình nền
+// club, "Đang tải", lỗ chiếu khung YouTube).
 import * as THREE from 'three';
 import { SONG_BAC, createRng, type ColliderDef, type MapDef } from '@shared/index';
 import { defaultAnchors } from '../anchors';
@@ -11,6 +12,7 @@ import { createAvatar, npcLook } from '../avatar';
 import { kit as defaultKit } from '../kit';
 import { buildCasino } from './casino';
 import { WEST_LINING, glowCanvasMat, neonText, worldBox } from './casinoKit';
+import { LED_COL_W, buildBarScreen, ledColumnX } from './screen';
 
 type Theme = 'neon' | 'gold' | 'ocean' | 'fire';
 const THEMES: Record<Theme, string[]> = {
@@ -261,21 +263,25 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
     dyn.add(sp);
     speakers.push(sp);
   }
-  // Tường LED sau DJ: lưới cột sóng nhạc.
+  // Tường LED sau DJ: lưới cột sóng nhạc, chia đôi sang hai bên màn hình sân khấu (10 cột mỗi bên — ledColumnX). Giữ 20
+  // cột × 8 hàng cách 0,42 m nên phổ nhạc / đèn chớp / vòng cập nhật (đọc hàng từ y) không đổi.
   const vu: { m: THREE.Mesh; col: number }[] = [];
   const vuGroup = new THREE.Group();
   vuGroup.position.set(0, 1.2, -D / 2 + 0.36);
   for (let c = 0; c < 20; c++) {
     for (let r = 0; r < 8; r++) {
-      const m = mesh(geo.box(0.42, 0.32, 0.05), themedMat(r < 3 ? 1 : r < 6 ? 0 : 3, 1.8), { x: -5.7 + c * 0.6, y: r * 0.42, castShadow: false });
+      const m = mesh(geo.box(LED_COL_W, 0.32, 0.05), themedMat(r < 3 ? 1 : r < 6 ? 0 : 3, 1.8), { x: ledColumnX(c), y: r * 0.42, castShadow: false });
       vuGroup.add(m);
       vu.push({ m, col: c });
     }
   }
   dyn.add(vuGroup);
-  const clubSign = kit.signBoard('NIẾT BÀN CLUB', { width: 6, height: 0.9, bg: '#0b0814', border: '#ff4fd8', color: '#7ff6ff', depth: 0.04 });
-  clubSign.position.set(0, 5.0, -D / 2 + 0.34);
-  dyn.add(clubSign);
+  // Màn hình LED sân khấu (BAR_SCREEN) giữa hai nửa tường LED, thay bảng chữ "NIẾT BÀN CLUB" cũ (logo nằm trên hình nền
+  // màn hình): khung + viền neon gộp tĩnh, mặt màn hình + neo 'video_screen' (khung YouTube lớp CSS3D đặt đúng tại đây).
+  const screen = buildBarScreen(kit, themedMat);
+  statics.add(screen.statics);
+  dyn.add(screen.dyn);
+  anchors.set('video_screen', screen.anchor);
 
   // Khói CO2 (smoke): 4 vòi trên sàn trước bàn DJ + một đám hạt dùng chung (mảng cấp phát 1 lần, mỗi khung chỉ ghi số;
   // cỡ hạt riêng từng hạt qua thuộc tính aSize vá vào shader của PointsMaterial).
@@ -651,8 +657,12 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
   lasers.visible = false;
   const laserMat = glow('#5cff8f', 0.55);
   for (let i = 0; i < 10; i++) {
-    const l = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 30, 4), laserMat);
-    l.position.set(0, 4.8, -D / 2 + 1);
+    // Tia bắt đầu đúng ở gốc (hình trụ dời nửa thân ra trước) — không có nửa sau chĩa xuống cắt mép trên video.
+    const l = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 30, 4).translate(0, 15, 0), laserMat);
+    // Gốc tia trên mép màn hình LED sân khấu (5,45 m) — tia không vạch ngang qua video.
+    l.position.set(0, 5.52, -D / 2 + 1);
+    // Nghiêng trước rồi mới xoay quanh trục đứng (YXZ) — rotation.y xòe các tia thành quạt (XYZ chỉ xoay tia quanh chính nó).
+    l.rotation.order = 'YXZ';
     l.rotation.x = Math.PI / 2 - 0.3;
     l.userData.a = (i / 10) * Math.PI - Math.PI / 2;
     lasers.add(l);
@@ -882,6 +892,9 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
       smoke() {
         smokeStart = clock;
       },
+      setVideoScreen(mode, title) {
+        screen.setMode(mode, title ?? null);
+      },
     },
     update(dt, t) {
       clock = t;
@@ -979,6 +992,7 @@ export const buildBar: WorldBuilder = (map: MapDef, kit = defaultKit): WorldHand
       bartender.dispose();
       dealer.dispose();
       casino.dispose();
+      screen.dispose();
       kit.disposeTree(root);
     },
   };

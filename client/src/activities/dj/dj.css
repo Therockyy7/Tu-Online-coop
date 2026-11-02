@@ -1,5 +1,6 @@
 /* Bàn DJ (tiền tố dj-, gói trong .dj-panel để đè kiểu .btn chung): màn "đang phát" tối kiểu bàn mixer neon trên nền
-   giấy của panel, danh sách bài 2 nhóm, nút hiệu ứng có lớp phủ đồng hồ nghỉ, 4 màu đèn, dải phím tắt. */
+   giấy của panel, mục dán link YouTube + hàng chờ, danh sách bài 2 nhóm, nút hiệu ứng có lớp phủ đồng hồ nghỉ, 4 màu
+   đèn, dải phím tắt; nút bật tiếng YouTube (ngoài bảng) và khung YouTube ở lớp CSS3D. */
 .dj-panel .panel-body {
   padding-top: 10px;
 }
@@ -28,6 +29,12 @@
   margin-top: 2px;
   font: 800 18px/1.25 var(--font-title);
   text-shadow: 0 0 10px rgba(255, 79, 216, 0.6);
+  /* Tên video YouTube dài / không dấu cách: ngắt được ở mọi chỗ, tối đa 2 dòng. */
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .dj-meta {
   margin-top: 1px;
@@ -99,6 +106,130 @@
 .dj-panel .locked {
   opacity: 0.45;
   filter: grayscale(0.4);
+}
+/* Mục YouTube: ô dán link + nút Thêm, dòng gợi ý, hàng chờ (mỗi dòng cắt chữ 1 dòng, ▶ phát ngay, ✕ xoá). */
+.dj-yt-form {
+  display: flex;
+  gap: 6px;
+}
+.dj-panel .dj-yt-input {
+  flex: 1;
+  min-width: 0;
+}
+.dj-panel .dj-yt-input.nope {
+  border-color: #d9483c;
+  animation: dj-nope 0.3s;
+}
+.dj-panel .dj-yt-add {
+  flex: none;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #fff;
+  background: linear-gradient(135deg, #ff4fd8, #9b5cff);
+  box-shadow: 0 3px 0 #5a2a8a;
+}
+.dj-yt-hint {
+  margin-top: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.dj-yt-hint.bad {
+  color: #b8322a;
+}
+.dj-yt-hint.wait {
+  color: #b02a9a;
+}
+.dj-yt-queue {
+  margin-top: 8px;
+  padding: 7px 10px 8px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: #fffdf7;
+}
+.dj-yt-qhead {
+  font: 800 12.5px var(--font-title);
+  color: #6e2c17;
+}
+.dj-yt-qlist {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+.dj-yt-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dj-yt-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.dj-panel .dj-yt-btn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.dj-panel .dj-yt-play {
+  color: #fff;
+  background: linear-gradient(135deg, #ff4fd8, #9b5cff);
+  box-shadow: 0 2px 0 #5a2a8a;
+}
+.dj-panel .dj-yt-del {
+  color: #a3271d;
+  background: #ffe9e4;
+  box-shadow: inset 0 0 0 1px #f0a99c;
+}
+.dj-yt-empty {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+/* Nút bật tiếng khi trình duyệt chặn tự phát có tiếng (gắn thẳng vào #ui, ngoài bảng DJ): giữa trên màn hình, nằm trên
+   lớp nền mờ của bảng (bảng DJ đang mở vẫn bấm được), dưới toast. Căn giữa bằng margin (transform của .btn:hover). */
+.btn.dj-yt-chip {
+  position: fixed;
+  z-index: 5;
+  top: 72px;
+  left: 0;
+  right: 0;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin: 0 auto;
+  padding: 9px 18px;
+  border: 2px solid rgba(255, 79, 216, 0.75);
+  border-radius: 999px;
+  background: linear-gradient(160deg, rgba(40, 14, 54, 0.92), rgba(18, 8, 30, 0.88));
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.35),
+    0 0 14px rgba(255, 79, 216, 0.45);
+  color: #fff;
+  font: 700 14px var(--font-body);
+  pointer-events: auto;
+  animation: dj-yt-pulse 1.6s ease-in-out infinite;
+}
+@keyframes dj-yt-pulse {
+  50% {
+    box-shadow:
+      0 6px 18px rgba(0, 0, 0, 0.35),
+      0 0 24px rgba(255, 79, 216, 0.85);
+  }
+}
+/* Khung YouTube ở lớp CSS3D dưới canvas (màn hình LED Bar): iframe khít khung (block — không hở chân dòng, lệch lỗ). */
+.dj-yt-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 .dj-sec {
   margin: 11px 0 6px;

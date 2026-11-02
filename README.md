@@ -3,7 +3,7 @@
 Game web co-op cho hội bạn: **lên chùa tích Công Đức, xuống núi xả nghiệp**. 3D low-poly góc nhìn thứ nhất, chơi trên trình duyệt máy tính, 2–20 người một phòng.
 
 - **Chùa:** cấp bậc từ Tiểu Đồng Quét Lá tới Phương Trượng. Quét lá, chẻ củi, xách nước, thiền, phóng sinh, nấu cơm chay, gõ mõ tụng kinh đồng điệu, thỉnh Đại Hồng Chung, Đại lễ cúng dường. Có Hiên Tăng Đoàn treo ảnh chân dung.
-- **Quán Bar Hạ Sơn:** đổi Đức lấy Xu, bao cả quán, vé VIP, thi nhảy kiểu Audition, DJ chiếm sóng, thi pha chế, Bầu Cua Cá Cọp, vòng quay sự thật.
+- **Quán Bar Hạ Sơn:** đổi Đức lấy Xu, bao cả quán, vé VIP, thi nhảy kiểu Audition, DJ chiếm sóng (nhạc có sẵn hoặc dán link YouTube chiếu lên màn hình LED sân khấu cho cả quán cùng xem, có hàng chờ), thi pha chế, Bầu Cua Cá Cọp, vòng quay sự thật.
 
 Thiết kế chi tiết: [`docs/superpowers/specs/2026-10-30-tu-online-design.md`](docs/superpowers/specs/2026-10-30-tu-online-design.md).
 

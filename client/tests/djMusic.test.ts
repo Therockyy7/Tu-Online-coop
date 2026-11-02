@@ -1,12 +1,22 @@
 // Nhạc DJ phía client (DjMusic): chỉ gọi audio khi trạng thái phát đổi, bài thu sẵn bám giờ server, bài tổng hợp theo
 // lưới phách, nhỏ lại trong Sòng Công Đức (cả bài thu sẵn lẫn bài tổng hợp), phách → đèn, Drop tự bắn ở mốc drop; hiệu
-// ứng DJ (DjEffects) trong Sòng nhỏ tiếng, không rung / chớp trắng. Context giả, không cần trình duyệt.
+// ứng DJ (DjEffects) trong Sòng nhỏ tiếng, không rung / chớp trắng; video YouTube (spec 2026-11-02): một nguồn nhạc tại
+// một lúc, trình phát (bản giả) nhận trạng thái khi khóa nguồn đổi, đèn theo nhịp danh nghĩa, không Drop tự động.
+// Context giả, không cần trình duyệt.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DJ, getZone } from '@shared/index';
-import { DJ_RECORDED, beatMs, trackInfo, type DjAnyTrackId, type DjPublicState } from '@shared/activities/dj';
+import { DJ, getZone, sanitizeTitle } from '@shared/index';
+import {
+  DJ_RECORDED,
+  beatMs,
+  trackInfo,
+  type DjAnyTrackId,
+  type DjPublicState,
+  type DjYoutubeNow,
+} from '@shared/activities/dj';
 import type { FollowRecordedOptions } from '../src/audio/index';
 import { DjEffects } from '../src/activities/dj/effects';
 import { DjMusic } from '../src/activities/dj/music';
+import type { YoutubeScreenLike } from '../src/activities/dj/youtube/screen';
 import type { ClientActivityContext } from '../src/activities/types';
 
 function fakeCtx() {
@@ -46,7 +56,7 @@ function fakeCtx() {
     ui: { screenFx: { flash: log('flash') } },
   } as unknown as ClientActivityContext;
   const of = (fn: string) => calls.filter((c) => c.fn === fn);
-  return { ctx, env, calls, of };
+  return { ctx, env, calls, of, log };
 }
 
 function djState(trackId: DjAnyTrackId, startedAt: number, playing = true): DjPublicState {
@@ -66,7 +76,47 @@ function djState(trackId: DjAnyTrackId, startedAt: number, playing = true): DjPu
     strobeAt: 0,
     controllerPid: null,
     controllerName: null,
+    yt: null,
+    ytQueue: [],
   };
+}
+
+/** Đang phát video YouTube (key) từ startedAt: nhịp danh nghĩa, beat0 = startedAt, bài có sẵn gần nhất = bài 1. */
+function ytState(key: number, startedAt: number, playing = true, extra: Partial<DjYoutubeNow> = {}): DjPublicState {
+  return {
+    ...djState(DJ_RECORDED[0]!.id, startedAt, playing),
+    bpm: DJ.youtube.bpm,
+    beat0: startedAt,
+    yt: {
+      key,
+      videoId: 'dQw4w9WgXcQ',
+      title: `Video ${key}`,
+      author: 'Kênh',
+      startMs: 0,
+      byPid: 'a',
+      byName: 'A',
+      durationMs: 0,
+      live: false,
+      ...extra,
+    },
+  };
+}
+
+/** DjMusic với trình phát YouTube giả (ghi lời gọi vào cùng nhật ký với audio để so thứ tự). */
+function withScreen() {
+  const f = fakeCtx();
+  const getters: (() => DjPublicState | null)[] = [];
+  const screen: YoutubeScreenLike = {
+    apply: f.log('screen.apply'),
+    update: f.log('screen.update'),
+    stop: f.log('screen.stop'),
+    dispose: f.log('screen.dispose'),
+  };
+  const m = new DjMusic((_ctx, getState) => {
+    getters.push(getState);
+    return screen;
+  });
+  return { ...f, m, getters };
 }
 
 afterEach(() => {
@@ -263,5 +313,108 @@ describe('DJ khi đứng trong Sòng Công Đức', () => {
     expect(of('djDrop').at(-1)!.args).toEqual([1]);
     expect(of('shake')).toHaveLength(1);
     expect(of('flash')).toHaveLength(1);
+  });
+});
+
+describe('DjMusic — video YouTube trên màn hình LED', () => {
+  it('vào YouTube: tắt hẳn bài thu sẵn, trình phát nhận trạng thái, chữ chạy hiện tên video (cắt 48 ký tự)', () => {
+    const { ctx, env, of, m, getters } = withScreen();
+    m.sync(djState(DJ_RECORDED[0]!.id, env.now), ctx);
+    expect(of('setRecorded')).toHaveLength(1);
+    const long = 'Sơn Tùng M-TP — Chúng Ta Của Tương Lai (Official Music Video) | 4K Remastered Edition';
+    const s = ytState(7, env.now + DJ.youtube.startDelayMs, true, { title: long });
+    m.sync(s, ctx);
+    expect(of('setRecorded').at(-1)!.args).toEqual([null, 0]);
+    expect(of('screen.apply')).toHaveLength(1);
+    expect(of('screen.apply')[0]!.args[0]).toBe(s);
+    const shown = of('setNowPlaying').at(-1)!.args[0] as string;
+    expect(shown).toBe(sanitizeTitle(long, 48));
+    expect([...shown]).toHaveLength(48);
+    expect(of('setMusicPlaying').at(-1)!.args[0]).toBe(true);
+    expect(of('startBeatTrack')).toHaveLength(0);
+    expect(getters).toHaveLength(1);
+  });
+
+  it('cùng khóa nguồn / chỉ đổi thời lượng → không áp lại, không mở lại nguồn; trình phát đọc được số mới', () => {
+    const { ctx, env, of, m, getters } = withScreen();
+    const s = ytState(3, env.now);
+    m.sync(s, ctx);
+    m.sync({ ...s, theme: 'fire', dropAt: env.now }, ctx);
+    const meta: DjPublicState = { ...s, yt: { ...s.yt!, durationMs: 200_000 } };
+    m.sync(meta, ctx);
+    expect(of('screen.apply')).toHaveLength(1);
+    expect(of('setRecorded')).toHaveLength(0);
+    expect(getters[0]!()?.yt?.durationMs).toBe(200_000);
+    // Dừng video (playing đổi) → áp lại, ẩn chữ chạy; phát tiếp (startedAt mới) → áp lại.
+    m.sync({ ...meta, playing: false, pausedAtMs: 30_000 }, ctx);
+    expect(of('screen.apply')).toHaveLength(2);
+    expect(of('setNowPlaying').at(-1)!.args[0]).toBeNull();
+    m.sync({ ...meta, startedAt: env.now + 1000 - 30_000 }, ctx);
+    expect(of('screen.apply')).toHaveLength(3);
+    // Video khác (key mới) dù cùng mốc → áp lại; chỉ một trình phát cho cả lúc ở Bar.
+    m.sync({ ...meta, startedAt: env.now + 1000 - 30_000, yt: { ...meta.yt!, key: 4 } }, ctx);
+    expect(of('screen.apply')).toHaveLength(4);
+    expect(getters).toHaveLength(1);
+  });
+
+  it('từ bài tổng hợp sang YouTube: tắt bài có nhịp, không mở bài thu sẵn', () => {
+    const { ctx, env, of, m } = withScreen();
+    m.sync(djState(DJ.tracks[0]!.id, env.now), ctx);
+    m.sync(ytState(1, env.now + 2500), ctx);
+    expect(of('stopBeatTrack')).toHaveLength(1);
+    expect(of('setRecorded')).toHaveLength(0);
+    expect(of('screen.apply')).toHaveLength(1);
+  });
+
+  it('đèn theo nhịp danh nghĩa từ lúc video vào bài (cả link ?t=), không Drop; trình phát update mỗi khung', () => {
+    const { ctx, env, of, m } = withScreen();
+    // Link ?t=90: giây 0 của video nằm 87,5 s trong quá khứ nhưng video chỉ vào bài sau 2,5 s nữa.
+    const playAtMs = env.now + DJ.youtube.startDelayMs;
+    const s = ytState(5, playAtMs - 90_000, true, { startMs: 90_000 });
+    m.sync(s, ctx);
+    m.update(s, ctx);
+    expect(of('onBeat')).toHaveLength(0);
+    expect(of('screen.update')).toHaveLength(1);
+    const step = beatMs(DJ.youtube.bpm);
+    env.now = playAtMs + 1;
+    m.update(s, ctx);
+    env.now += step;
+    m.update(s, ctx);
+    const beats = of('onBeat').map((c) => c.args);
+    expect(beats).toHaveLength(2);
+    expect(beats[1]![0]).toBe((beats[0]![0] as number) + 1);
+    expect(beats[0]![1]).toBe(DJ.youtube.bpm);
+    // Đi qua mốc drop của bài có sẵn gần nhất (trackId) → không Drop, không rung.
+    const drop0 = DJ_RECORDED[0]!.drops![0]!;
+    env.now = s.startedAt + drop0 - 30;
+    m.update(s, ctx);
+    env.now = s.startedAt + drop0 + 5;
+    m.update(s, ctx);
+    expect(of('drop')).toHaveLength(0);
+    expect(of('shake')).toHaveLength(0);
+    // Đang dừng: không nháy theo nhịp.
+    const n = of('onBeat').length;
+    const paused = { ...s, playing: false, pausedAtMs: 100_000 };
+    m.sync(paused, ctx);
+    env.now += step * 3;
+    m.update(paused, ctx);
+    expect(of('onBeat')).toHaveLength(n);
+  });
+
+  it('rời YouTube về bài thu sẵn: dừng trình phát TRƯỚC khi mở bài; rời Bar → hủy trình phát, vào lại tạo mới', () => {
+    const { ctx, env, calls, of, m, getters } = withScreen();
+    m.sync(ytState(5, env.now), ctx);
+    m.sync(djState(DJ_RECORDED[1]!.id, env.now + DJ.switchDelayMs), ctx);
+    const order = calls
+      .filter((c) => c.fn === 'screen.stop' || c.fn === 'setRecorded')
+      .map((c) => (c.fn === 'setRecorded' ? (c.args[0] === null ? 'tắt bài' : 'mở bài') : c.fn));
+    expect(order).toEqual(['screen.stop', 'mở bài']);
+    expect(of('setNowPlaying').at(-1)!.args[0]).toBe(DJ_RECORDED[1]!.name);
+    m.stop(ctx);
+    expect(of('screen.dispose')).toHaveLength(1);
+    expect(of('setRecorded').at(-1)!.args[0]).toBeNull();
+    m.reset();
+    m.sync(ytState(6, env.now), ctx);
+    expect(getters).toHaveLength(2);
   });
 });

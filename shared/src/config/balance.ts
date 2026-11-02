@@ -411,6 +411,37 @@ export const DJ = {
   leaveSlack: 2,
   /** Mức to nhạc DJ khi đứng trong Sòng Công Đức (sảnh Bar = 1). */
   casinoLevel: 0.55,
+  /** Link YouTube ở bàn DJ + màn hình LED sân khấu (spec 2026-11-02-dj-youtube-led-design.md). */
+  youtube: {
+    /**
+     * Nhịp danh nghĩa khi phát YouTube (video không có số đo nhịp): đèn / sàn LED nháy theo, khớp nhịp tự chạy của Bar
+     * (124). Thi nhảy không chấm theo nhịp này — mở sảnh nhảy thì tự chuyển về nhạc thu sẵn.
+     */
+    bpm: 124,
+    /** Phát video: bắt đầu sau ngần này (máy khách kịp tải trình phát YouTube). */
+    startDelayMs: 2500,
+    /** Hết thời lượng + ngần này mới sang bài (bù chênh giờ, máy dính quảng cáo đầu video). */
+    endGraceMs: 2000,
+    /** Phát quá ngần này mà chưa máy nào báo được thời lượng (không phải livestream) → coi như không phát được. */
+    metaTimeoutMs: 30_000,
+    /**
+     * Thời lượng máy khách báo phải nằm trong khoảng này (ms). Trần 13 giờ: YouTube cho tải lên video tới 12 giờ (loại
+     * "nhạc 10 tiếng") — trần thấp hơn thì video dài bị bỏ báo cáo rồi bị cắt ở mốc `metaTimeoutMs`.
+     */
+    minDurationMs: 1000,
+    maxDurationMs: 13 * 3600_000,
+    /** Hàng chờ tối đa (không tính video đang phát). */
+    queueMax: 10,
+    /** Độ dài tối đa (ký tự) tên video / tên kênh sau khi làm sạch. */
+    titleMax: 80,
+    authorMax: 40,
+    /** Link dán vào dài tối đa (ký tự). */
+    urlMax: 500,
+    /** Dán link tối thiểu cách nhau (mỗi lần dán server tra cứu YouTube 1 lần). */
+    pasteCooldownMs: 3000,
+    /** Chờ tra cứu YouTube (oEmbed) tối đa; quá thì vẫn nhận link với tên chung. */
+    lookupTimeoutMs: 3000,
+  },
 } as const;
 
 export interface IngredientDef {

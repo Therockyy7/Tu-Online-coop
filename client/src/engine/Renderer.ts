@@ -1,5 +1,6 @@
 // Lớp vẽ: WebGL (bóng mềm, tone mapping AgX, ánh sáng môi trường IBL, AO, bloom, chỉnh màu + viền tối),
-// nhãn HTML gắn 3D (CSS2D), lượt vẽ riêng cho đôi tay góc nhìn thứ nhất.
+// nhãn HTML gắn 3D (CSS2D), lượt vẽ riêng cho đôi tay góc nhìn thứ nhất, lớp CSS3D dưới canvas (khung YouTube của màn hình
+// LED Bar — chỉ lộ ra ở chỗ canvas "đục lỗ" trong suốt).
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
@@ -8,6 +9,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
+import { CSS3DRenderer } from 'three/addons/renderers/CSS3DRenderer.js';
 import type { GraphicsQuality } from '../settings';
 
 export interface BloomSettings {
@@ -70,6 +72,11 @@ if (THREE.ShaderChunk.normal_fragment_begin.includes(FLAT_NORMAL)) {
 export class Renderer3D {
   readonly renderer: THREE.WebGLRenderer;
   readonly labels: CSS2DRenderer;
+  /** Lớp CSS3D dưới canvas (khung YouTube của màn hình LED Bar) + cảnh riêng của nó. */
+  readonly css3d: CSS3DRenderer;
+  readonly cssScene = new THREE.Scene();
+  /** Vẽ lớp CSS3D mỗi khung (chỉ bật khi màn hình trong tầm nhìn và đang chiếu video). */
+  cssLive = false;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(75, 1, 0.05, 900);
   /** Cảnh riêng cho đôi tay + vật cầm (góc nhìn thứ nhất), vẽ sau cảnh chính và xóa depth. */
@@ -88,7 +95,10 @@ export class Renderer3D {
   private readonly onResize = () => this.resize();
 
   constructor(private readonly container: HTMLElement) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', alpha: true });
+    // Canvas có kênh alpha để màn hình LED "đục lỗ" cho video YouTube (lớp CSS3D bên dưới) hiện qua; chỗ khác vẫn đục
+    // (nền map là Color → xoá với alpha 1; cảnh không nền cũng xoá đục).
+    this.renderer.setClearAlpha(1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.AgXToneMapping;
     this.renderer.toneMappingExposure = 1.0;
@@ -96,6 +106,12 @@ export class Renderer3D {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.domElement.className = 'game-canvas';
     container.append(this.renderer.domElement);
+
+    // Chèn TRƯỚC canvas, trong #stage (hiệu ứng say rượu biến dạng cả hai lớp như nhau); nằm dưới canvas nhờ z-index âm
+    // (.css3d-layer ở ui.css) — canvas luôn đè lên nên phần tử trong lớp này không nhận chuột / bàn phím.
+    this.css3d = new CSS3DRenderer();
+    this.css3d.domElement.className = 'css3d-layer';
+    container.insertBefore(this.css3d.domElement, this.renderer.domElement);
 
     this.labels = new CSS2DRenderer();
     this.labels.domElement.className = 'label-layer';
@@ -199,6 +215,7 @@ export class Renderer3D {
     this.composer.setPixelRatio(ratio);
     this.composer.setSize(w, h);
     this.labels.setSize(w, h);
+    this.css3d.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.vmCamera.aspect = w / h;
@@ -216,6 +233,12 @@ export class Renderer3D {
       r.autoClear = true;
     }
     this.labels.render(this.scene, this.camera);
+    if (this.cssLive) this.css3d.render(this.cssScene, this.camera);
+  }
+
+  /** Vẽ lớp CSS3D ngay 1 lần (đưa phần tử mới thêm vào DOM, kể cả khi chưa bật cssLive). */
+  renderCss(): void {
+    this.css3d.render(this.cssScene, this.camera);
   }
 
   dispose(): void {
@@ -231,5 +254,8 @@ export class Renderer3D {
     this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
     this.labels.domElement.remove();
+    // Gỡ CSS3DObject khỏi cảnh → phần tử của nó tự rời DOM (sự kiện 'removed'), rồi gỡ cả lớp.
+    this.cssScene.clear();
+    this.css3d.domElement.remove();
   }
 }

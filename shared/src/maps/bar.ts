@@ -12,6 +12,15 @@ const box = (x: number, z: number, w: number, d: number, tag: string): ColliderD
 const circle = (x: number, z: number, r: number, tag: string): ColliderDef => ({ kind: 'circle', x, z, r, tag });
 
 /**
+ * **Màn hình LED sân khấu** trên tường Bắc, sau lưng DJ, nhìn ra sàn nhảy (spec 2026-11-02-dj-youtube-led-design.md):
+ * chiếu video YouTube bàn DJ đang phát. (x, y, z) = tâm MẶT màn hình (mặt chiếu, trước khung viền); w × h = 16:9;
+ * ry = 0 → nhìn về +Z (phía Nam). Gắn tường, không thêm va chạm. Phần dựng hình (`client/src/art/bar/screen.ts`) và lớp
+ * CSS3D đặt khung YouTube (neo 'video_screen') cùng đọc số ở đây — mặt "đục lỗ" và khung video phải trùng khít.
+ * Gạch tường Bắc ở z −16,7; tường LED dời sang 2 bên (|x| ≥ 2,58), gốc tia laser nâng lên trên mép màn hình.
+ */
+export const BAR_SCREEN = { x: 0, y: 4.1, z: -16.5, w: 4.8, h: 2.7, ry: 0 } as const;
+
+/**
  * Phòng **Sòng Công Đức** nối tường Đông của Bar — NGUỒN SỰ THẬT bố cục cho cả map (va chạm, trạm) lẫn phần dựng hình
  * (`client/src/art/bar/casino.ts`, neo ở `client/src/art/anchors.ts`). Đổi số ở đây thì hai bên cùng theo.
  * Mọi bàn là hộp thẳng trục: tâm (x, z), rộng w theo X, sâu d theo Z.

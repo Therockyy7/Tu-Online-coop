@@ -51,6 +51,15 @@ body {
   pointer-events: none;
   overflow: hidden;
 }
+/* Lớp CSS3D (khung YouTube màn hình LED Bar) nằm DƯỚI canvas: z-index âm trong ngữ cảnh xếp lớp của #stage (fixed —
+   luôn tạo ngữ cảnh riêng, không có nền nên lớp này vẫn trên nền body), chỉ lộ ra ở chỗ canvas "đục lỗ" trong suốt;
+   không nhận chuột. */
+.css3d-layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
 body.drunk #stage {
   animation: drunk-sway 6s ease-in-out infinite;
   filter: blur(calc(var(--drunk) * 1.4px)) saturate(calc(1 + var(--drunk) * 0.5));

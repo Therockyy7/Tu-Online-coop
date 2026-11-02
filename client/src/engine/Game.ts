@@ -149,6 +149,13 @@ export class Game {
       get camera() {
         return self.r.camera;
       },
+      css3d: {
+        scene: self.r.cssScene,
+        setLive: (live) => {
+          self.r.cssLive = live;
+        },
+        flush: () => self.r.renderCss(),
+      },
       get map() {
         return self.map;
       },
@@ -288,6 +295,8 @@ export class Game {
   // ───────────────────────── Thế giới ─────────────────────────
 
   private buildWorld(mapId: MapId): void {
+    // Map mới chưa có màn hình nào đang chiếu: thôi vẽ lớp CSS3D mỗi khung (mini-game bật lại khi cần).
+    this.r.cssLive = false;
     if (this.handles) {
       this.r.scene.remove(this.handles.root);
       for (const l of this.handles.environment.lights) {

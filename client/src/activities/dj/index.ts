@@ -1,8 +1,9 @@
 // DJ Chiếm Sóng — phía client: cả quán nghe nhạc DJ theo trạng thái server (4 bài thu sẵn tự phát nối tiếp, 4 bài tổng
-// hợp lặp), đèn / sàn LED nháy theo phách, tường LED theo phổ nhạc thật, hiệu ứng Drop / còi / khói / đèn chớp. Bàn DJ
-// mở: ai đứng ở bàn cũng chỉnh được, mỗi lúc 1 người (server kiểm) — người đang đứng bàn thấy bảng DJ.
+// hợp lặp, video YouTube người đứng bàn dán — chiếu trên màn hình LED sân khấu), đèn / sàn LED nháy theo phách, tường
+// LED theo phổ nhạc thật, hiệu ứng Drop / còi / khói / đèn chớp. Bàn DJ mở: ai đứng ở bàn cũng chỉnh được, mỗi lúc 1
+// người (server kiểm) — người đang đứng bàn thấy bảng DJ.
 import { DJ } from '@shared/index';
-import { trackInfo, type DjPublicState } from '@shared/activities/dj';
+import { djSourceKey, trackInfo, type DjPublicState } from '@shared/activities/dj';
 import type { ActivityClientModule } from '../types';
 import { DjEffects } from './effects';
 import { DjMusic, inCasino } from './music';
@@ -21,11 +22,14 @@ function closePanel(silent: boolean): void {
   if (p && !p.closed) p.close(silent);
 }
 
-/** Đổi bài do người đứng bàn chọn (không phải tự sang bài khi bài thu sẵn hết) — kêu tiếng cào đĩa. */
+/**
+ * Đổi nguồn do người đứng bàn chọn (không phải tự sang bài khi bài thu sẵn / video YouTube hết) — kêu tiếng cào đĩa.
+ * Video chưa biết thời lượng / livestream (không tự hết) tính như bài tổng hợp: đổi lúc nào cũng là đổi tay.
+ */
 function manualSwitch(prev: DjPublicState, s: DjPublicState, now: number): boolean {
-  if (prev.trackId === s.trackId) return false;
-  const t = trackInfo(prev.trackId);
-  return !prev.playing || t.durationMs === 0 || now - prev.startedAt < t.durationMs - 1000;
+  if (djSourceKey(prev) === djSourceKey(s)) return false;
+  const dur = prev.yt ? (prev.yt.live ? 0 : prev.yt.durationMs) : trackInfo(prev.trackId).durationMs;
+  return !prev.playing || dur === 0 || now - prev.startedAt < dur - 1000;
 }
 
 export const djClient: ActivityClientModule = {

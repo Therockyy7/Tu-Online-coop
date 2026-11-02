@@ -105,10 +105,57 @@ export const DJ_TRACKS: readonly DjTrack[] = [
 ];
 export const DJ_TRACK_IDS = DJ_TRACKS.map((t) => t.id) as [DjAnyTrackId, ...DjAnyTrackId[]];
 
+/**
+ * Một video YouTube trong hàng chờ / đang phát (spec 2026-11-02-dj-youtube-led-design.md). Tên / kênh đã làm sạch ở
+ * server (sanitizeTitle) — client chỉ hiện bằng textContent / canvas. Video YouTube KHÔNG nằm trong DJ_TRACKS: không có
+ * BPM / phách / drop; trackInfo() không dùng được cho nó.
+ */
+export interface DjYoutubeItem {
+  /** Khóa duy nhất trong phòng (tăng dần) — lệnh 'yt_play' / 'yt_remove' gửi khóa này. */
+  key: number;
+  /** Id 11 ký tự (YT_ID_RE). */
+  videoId: string;
+  title: string;
+  /** Tên kênh ('' nếu không tra được). */
+  author: string;
+  /** Phát từ vị trí này trong video (ms): ?t= của link, hoặc chỗ đang dở khi Thi nhảy chen ngang. */
+  startMs: number;
+  /** Người dán link — máy người này báo lỗi trình phát thì cả quán đổi bài. */
+  byPid: Pid;
+  byName: string;
+}
+
+export interface DjYoutubeNow extends DjYoutubeItem {
+  /** Thời lượng (ms) do máy khách báo ('yt_meta', lần đầu thắng); 0 = chưa biết → chưa tự sang bài được. */
+  durationMs: number;
+  /** Livestream: không tự hết (chỉ đổi khi DJ bấm), máy khách không tua đồng bộ theo giờ server. */
+  live: boolean;
+}
+
+/**
+ * Lệnh YouTube gửi lên server (activity 'dj'), ngoài các lệnh bàn DJ cũ:
+ * - 'youtube' { url } — người đứng bàn dán link. Đang phát nhạc có sẵn + hàng chờ trống → phát ngay; còn lại → xếp
+ *   hàng (tối đa DJ.youtube.queueMax, không trùng video). Server tra cứu oEmbed trước khi nhận (tên video, video hỏng).
+ * - 'yt_play' { key } — người đứng bàn phát ngay 1 video trong hàng chờ (video YouTube đang phát bị bỏ).
+ * - 'yt_remove' { key } — người đứng bàn xoá 1 video khỏi hàng chờ.
+ * - 'yt_meta' { videoId, durationMs, live } — BẤT KỲ máy nào trong Bar báo thời lượng / livestream của video đang phát;
+ *   chỉ nhận lần đầu, đúng video, durationMs trong [DJ.youtube.minDurationMs, maxDurationMs] (live: true thì bỏ qua số).
+ * - 'yt_error' { videoId, code } — máy khách báo onError của trình phát; mã trong YT_FATAL_ERRORS từ máy người dán (byPid)
+ *   hoặc người đứng bàn → cả quán sang video kế / nhạc có sẵn.
+ * Ngoài ra khi đang phát YouTube: 'next' = video kế trong hàng chờ (trống → bài có sẵn kế), 'prev' / 'track' = về nhạc có
+ * sẵn (hàng chờ giữ nguyên, phát tiếp khi bài có sẵn hết); 'stop' / 'play' dừng / phát tiếp video.
+ */
+export const DJ_YT_ACTIONS = ['youtube', 'yt_play', 'yt_remove', 'yt_meta', 'yt_error'] as const;
+
 export interface DjPublicState {
+  /**
+   * Bài có sẵn đang phát; lúc phát YouTube là bài có sẵn phát gần nhất (⏭ / ⏮ / hết hàng chờ đi tiếp từ đây).
+   * Nguồn đang phát thật: `yt` (khác null) hoặc bài này — xem djSourceKey().
+   */
   trackId: DjAnyTrackId;
+  /** Nhịp bài đang phát; YouTube: DJ.youtube.bpm (danh nghĩa — đèn nháy theo, không phải nhịp thật của video). */
   bpm: number;
-  /** Giờ server ứng với giây 0 của bài (bài tổng hợp: phách 0). */
+  /** Giờ server ứng với giây 0 của bài (bài tổng hợp: phách 0; YouTube: giây 0 của video). */
   startedAt: number;
   /** Giờ server của một phách mạnh trong đoạn đang phát — lưới phách = beat0 + k·beatMs(bpm). */
   beat0: number;
@@ -125,6 +172,23 @@ export interface DjPublicState {
   /** Người đang đứng bàn DJ (null = bàn trống). */
   controllerPid: Pid | null;
   controllerName: string | null;
+  /** Đang phát video YouTube (null = đang ở nhạc có sẵn). Lúc này beat0 = startedAt, bpm = DJ.youtube.bpm. */
+  yt: DjYoutubeNow | null;
+  /** Hàng chờ YouTube, phát lần lượt từ đầu mảng (không tính video đang phát). */
+  ytQueue: DjYoutubeItem[];
+}
+
+/**
+ * Khóa nguồn đang phát: `yt:<key>` khi phát YouTube (dán lại cùng video vẫn là lượt mới), còn lại là id bài có sẵn.
+ * Máy khách so khóa này (cùng startedAt / playing) để biết khi nào phải mở lại nguồn phát.
+ */
+export function djSourceKey(s: Pick<DjPublicState, 'trackId' | 'yt'>): string {
+  return s.yt ? `yt:${s.yt.key}` : s.trackId;
+}
+
+/** Tên nguồn đang phát (YouTube: tên video; có sẵn: tên bài). */
+export function djNowTitle(s: Pick<DjPublicState, 'trackId' | 'yt'>): string {
+  return s.yt ? s.yt.title : trackInfo(s.trackId).name;
 }
 
 /** Lưới phách: mốc một phách mạnh (giờ server) + nhịp. */

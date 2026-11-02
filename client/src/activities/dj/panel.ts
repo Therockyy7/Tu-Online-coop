@@ -1,7 +1,8 @@
-// Bảng DJ (chỉ người đang đứng bàn thấy): đang phát + thanh tiến độ, ⏮ ▶/⏸ ⏭, danh sách 8 bài (thu sẵn / tổng hợp),
-// hiệu ứng có đồng hồ nghỉ, 4 màu đèn, phím tắt. DOM dựng một lần; trạng thái mới chỉ bật/tắt lớp, mỗi khung chỉ sửa
-// thanh tiến độ + đồng hồ nghỉ khi số hiển thị đổi. Bảng là modal nên engine không chuyển phím cho module: bảng tự
-// nghe keydown (pha bắt) lúc mở; Esc để engine đóng bảng — onClose của bảng báo rời bàn.
+// Bảng DJ (chỉ người đang đứng bàn thấy): đang phát + thanh tiến độ, ⏮ ▶/⏸ ⏭, dán link YouTube + hàng chờ (chiếu trên
+// màn hình LED sân khấu), danh sách 8 bài (thu sẵn / tổng hợp), hiệu ứng có đồng hồ nghỉ, 4 màu đèn, phím tắt. DOM dựng
+// một lần; trạng thái mới chỉ bật/tắt lớp (hàng chờ chỉ dựng lại khi hàng chờ đổi — ô dán không mất chữ / tiêu điểm),
+// mỗi khung chỉ sửa thanh tiến độ + đồng hồ nghỉ khi số hiển thị đổi. Bảng là modal nên engine không chuyển phím cho
+// module: bảng tự nghe keydown (pha bắt) lúc mở; Esc để engine đóng bảng — onClose của bảng báo rời bàn.
 import { DJ } from '@shared/index';
 import type { DancePublicState } from '@shared/activities/dance';
 import {
@@ -13,11 +14,14 @@ import {
   type DjAnyTrackId,
   type DjPublicState,
   type DjTrack,
+  type DjYoutubeItem,
   type LightTheme,
 } from '@shared/activities/dj';
+import { parseYoutubeUrl } from '@shared/activities/youtube';
 import type { PanelHandle } from '../../ui/api';
 import { button, h } from '../../ui/dom';
 import type { ClientActivityContext } from '../types';
+import { playAt } from './youtube/sync';
 
 type EffectField = 'dropAt' | 'hornAt' | 'confettiAt' | 'smokeAt' | 'strobeAt';
 
@@ -70,6 +74,25 @@ interface FxView {
 const SOON = -1;
 const LOOPING = -2;
 const STOPPED = -3;
+/** Video YouTube: livestream / chưa biết thời lượng (chờ máy khách báo). */
+const LIVE = -4;
+const FETCHING = -5;
+
+/** Dán link xong chờ server trả lời (video vào phát / vào hàng chờ) tối đa ngần này (ms), rồi thôi "đang kiểm tra". */
+const PENDING_MS = 6000;
+
+/** Dòng gợi ý dưới ô dán link. */
+type HintMode = 'error' | 'pending' | 'full' | 'busy' | 'queueYt' | 'queueWait' | 'now';
+
+const HINT_TEXT: Record<HintMode, string> = {
+  error: 'Link không phải video YouTube — dán link dạng youtube.com/watch?v=… hoặc youtu.be/…',
+  pending: 'Đang kiểm tra link…',
+  full: `Hàng chờ đã đầy (${DJ.youtube.queueMax}/${DJ.youtube.queueMax}) — xoá bớt video rồi thêm`,
+  busy: '💃 Đang có vòng nhảy — video phát khi hết vòng (vẫn thêm / xoá hàng chờ được)',
+  queueYt: `Đang phát YouTube → link mới xếp cuối hàng chờ (tối đa ${DJ.youtube.queueMax})`,
+  queueWait: 'Hàng chờ còn video → link mới xếp cuối hàng (phát khi bài có sẵn hết, hoặc bấm ▶)',
+  now: 'Đang phát nhạc có sẵn → dán link là phát ngay trên màn hình LED',
+};
 
 export class DjPanel {
   private readonly panel: PanelHandle;
@@ -87,7 +110,21 @@ export class DjPanel {
   private readonly trackBtns = new Map<DjAnyTrackId, HTMLButtonElement>();
   private readonly themeBtns = new Map<LightTheme, HTMLButtonElement>();
   private readonly fx: FxView[] = [];
-  /** Đang hiện: giây của đồng hồ chạy (hoặc SOON / LOOPING / STOPPED), độ dài thanh tiến độ, khóa vòng nhảy. */
+  /** Mục YouTube: ô dán link, dòng gợi ý, hàng chờ (tiêu đề + danh sách, nút ▶ từng dòng — khóa trong vòng nhảy). */
+  private readonly ytInput: HTMLInputElement;
+  private readonly ytHint: HTMLElement;
+  private readonly queueHead: HTMLElement;
+  private readonly queueList: HTMLElement;
+  private readonly queuePlay: HTMLButtonElement[] = [];
+  /** Chữ ký hàng chờ đang hiện (các key nối lại; null = chưa dựng). */
+  private queueSig: string | null = null;
+  /** Đã gửi link, chờ server: chữ ký `video đang phát|hàng chờ` lúc gửi (null = không chờ) + hạn (performance.now). */
+  private pendingSig: string | null = null;
+  private pendingUntil = 0;
+  /** Link vừa dán sai dạng (báo tại chỗ tới khi gõ lại / gửi link đúng). */
+  private badLink = false;
+  private shownHint: HintMode | null = null;
+  /** Đang hiện: giây đồng hồ chạy (hoặc SOON / LOOPING / STOPPED / LIVE / FETCHING), độ dài thanh, khóa vòng nhảy. */
   private shownKey = Number.NaN;
   private shownFill = -1;
   private shownBusy = false;
@@ -127,6 +164,28 @@ export class DjPanel {
     this.lockables.push(this.playBtn);
     this.lockables.push(button('⏭', 'dj-tbtn', () => this.send('next'), tr));
     this.lock = h('div', 'dj-lock', '💃 Đang có vòng nhảy — chưa dừng / đổi bài được, chờ hết vòng nhé.', b);
+
+    // YouTube: dán link → server tra cứu rồi phát ngay / xếp hàng; cả quán xem trên màn hình LED sân khấu.
+    h('div', 'dj-sec', '▶️ YouTube — chiếu lên màn hình LED', b);
+    const form = h('div', 'dj-yt-form', '', b);
+    this.ytInput = h('input', 'input input-small dj-yt-input', '', form);
+    this.ytInput.type = 'text';
+    this.ytInput.placeholder = 'Dán link YouTube (youtube.com/watch…, youtu.be/…)';
+    this.ytInput.maxLength = DJ.youtube.urlMax;
+    this.ytInput.spellcheck = false;
+    this.ytInput.autocomplete = 'off';
+    this.ytInput.addEventListener('keydown', (e) => this.onInputKey(e));
+    this.ytInput.addEventListener('input', () => {
+      if (!this.badLink) return;
+      this.badLink = false;
+      this.ytInput.classList.remove('nope');
+      this.refreshHint();
+    });
+    button('➕ Thêm', 'dj-yt-add', () => this.submitYoutube(), form);
+    this.ytHint = h('div', 'dj-yt-hint', '', b);
+    const queue = h('div', 'dj-yt-queue', '', b);
+    this.queueHead = h('div', 'dj-yt-qhead', '', queue);
+    this.queueList = h('div', 'dj-yt-qlist', '', queue);
 
     for (const [kind, label] of [
       ['recorded', '🎵 Nhạc thu sẵn (tự phát nối tiếp)'],
@@ -195,19 +254,33 @@ export class DjPanel {
     this.panel.close();
   }
 
-  /** Trạng thái mới: tên bài, nút phát/dừng, bài đang chọn, màu đèn. */
+  /** Trạng thái mới: tên bài / video, nút phát/dừng, bài đang chọn, màu đèn, hàng chờ YouTube. */
   render(): void {
     const s = this.state();
     if (this.panel.closed || !s) return;
-    const t = trackInfo(s.trackId);
     this.status.textContent = s.playing ? '● ĐANG PHÁT' : '❚❚ ĐÃ DỪNG';
     this.status.classList.toggle('on', s.playing);
-    this.title.textContent = t.name;
-    this.meta.textContent = `${Math.round(t.bpm)} BPM · ${t.kind === 'recorded' ? 'Nhạc thu sẵn' : 'Nhạc tổng hợp'}`;
+    if (s.yt) {
+      // Video YouTube không nằm trong danh sách bài (trackInfo không dùng được cho nó).
+      this.title.textContent = s.yt.title;
+      this.meta.textContent = `YouTube · ${s.yt.author || 'không rõ kênh'} · ${s.yt.byName} chọn`;
+    } else {
+      const t = trackInfo(s.trackId);
+      this.title.textContent = t.name;
+      this.meta.textContent = `${Math.round(t.bpm)} BPM · ${t.kind === 'recorded' ? 'Nhạc thu sẵn' : 'Nhạc tổng hợp'}`;
+    }
     this.playBtn.textContent = s.playing ? '⏸' : '▶';
     this.playBtn.title = s.playing ? 'Dừng (P)' : 'Phát (P)';
-    for (const [id, btn] of this.trackBtns) btn.classList.toggle('on', id === s.trackId);
+    for (const [id, btn] of this.trackBtns) btn.classList.toggle('on', !s.yt && id === s.trackId);
     for (const [th, btn] of this.themeBtns) btn.classList.toggle('on', th === s.theme);
+    const qsig = s.ytQueue.map((it) => it.key).join();
+    if (qsig !== this.queueSig) {
+      this.queueSig = qsig;
+      this.buildQueue(s.ytQueue);
+    }
+    // Server đã trả lời link vừa dán (video vào phát / vào hàng chờ) → thôi "đang kiểm tra".
+    if (this.pendingSig !== null && this.ytSig(s) !== this.pendingSig) this.pendingSig = null;
+    this.refreshHint();
     this.shownKey = Number.NaN;
     this.shownFill = -1;
   }
@@ -217,18 +290,32 @@ export class DjPanel {
     const s = this.state();
     if (this.panel.closed || !s) return;
     const now = this.ctx.serverNow();
-    const t = trackInfo(s.trackId);
     let frac: number;
     let key: number;
-    if (t.kind === 'recorded') {
+    let dur = 0;
+    if (s.yt) {
+      // YouTube: tiến độ khi đã biết thời lượng; livestream / chưa biết thời lượng thì báo chữ.
+      const yt = s.yt;
+      dur = yt.live ? 0 : yt.durationMs;
       const pos = positionMs(s, now);
-      frac = Math.max(0, Math.min(1, pos / t.durationMs));
-      key = pos < 0 ? SOON : Math.floor(Math.min(pos, t.durationMs) / 1000);
+      frac = yt.live ? 1 : dur > 0 ? Math.max(0, Math.min(1, pos / dur)) : 0;
+      if (!s.playing) key = STOPPED;
+      else if (now < playAt(yt, s.startedAt)) key = SOON;
+      else if (yt.live) key = LIVE;
+      else key = dur > 0 ? Math.floor(Math.min(pos, dur) / 1000) : FETCHING;
     } else {
-      // Bài tổng hợp không có hồi kết: thanh chạy theo ô nhịp (4 phách) cho dễ canh.
-      const m = beatMs(s.bpm) * 4;
-      frac = s.playing ? Math.round((((((now - s.beat0) % m) + m) % m) / m) * 32) / 32 : 0;
-      key = s.playing ? LOOPING : STOPPED;
+      const t = trackInfo(s.trackId);
+      if (t.kind === 'recorded') {
+        dur = t.durationMs;
+        const pos = positionMs(s, now);
+        frac = Math.max(0, Math.min(1, pos / dur));
+        key = pos < 0 ? SOON : Math.floor(Math.min(pos, dur) / 1000);
+      } else {
+        // Bài tổng hợp không có hồi kết: thanh chạy theo ô nhịp (4 phách) cho dễ canh.
+        const m = beatMs(s.bpm) * 4;
+        frac = s.playing ? Math.round((((((now - s.beat0) % m) + m) % m) / m) * 32) / 32 : 0;
+        key = s.playing ? LOOPING : STOPPED;
+      }
     }
     if (Math.abs(frac - this.shownFill) >= 0.002) {
       this.shownFill = frac;
@@ -243,7 +330,11 @@ export class DjPanel {
             ? '∞ Lặp tới khi đổi bài'
             : key === STOPPED
               ? 'Đã dừng'
-              : `${clock(key * 1000)} / ${clock(t.durationMs)}`;
+              : key === LIVE
+                ? '● TRỰC TIẾP'
+                : key === FETCHING
+                  ? 'Đang lấy thời lượng…'
+                  : `${clock(key * 1000)} / ${clock(dur)}`;
     }
     for (const v of this.fx) {
       const left = Math.max(0, s[v.def.field] + v.def.cooldown - now);
@@ -264,11 +355,111 @@ export class DjPanel {
       this.shownBusy = busy;
       this.lock.classList.toggle('on', busy);
       for (const e of this.lockables) e.classList.toggle('locked', busy);
+      // Trong vòng nhảy: ▶ phát ngay bị khóa như ⏮ ⏭; ô dán + ✕ xoá vẫn dùng được (server kiểm như nhau).
+      for (const e of this.queuePlay) e.classList.toggle('locked', busy);
+      this.refreshHint();
+    }
+    if (this.pendingSig !== null && performance.now() > this.pendingUntil) {
+      this.pendingSig = null;
+      this.refreshHint();
     }
   }
 
   private send(type: string, data?: unknown): void {
     this.ctx.send(type, data);
+  }
+
+  /** Chữ ký nguồn YouTube + hàng chờ (đổi = server đã nhận / từ chối xong link vừa dán). */
+  private ytSig(s: DjPublicState): string {
+    return `${s.yt ? s.yt.key : ''}|${this.queueSig ?? ''}`;
+  }
+
+  /** Thêm link: kiểm dạng ngay tại máy (sai → báo tại chỗ + lắc ô, không gửi); đúng → gửi, chờ server trả lời. */
+  private submitYoutube(): void {
+    const url = this.ytInput.value.trim();
+    if (!url) return;
+    if (!parseYoutubeUrl(url)) {
+      this.badLink = true;
+      this.refreshHint();
+      this.ytInput.classList.remove('nope');
+      void this.ytInput.offsetWidth;
+      this.ytInput.classList.add('nope');
+      return;
+    }
+    this.send('youtube', { url });
+    this.ytInput.value = '';
+    this.ytInput.classList.remove('nope');
+    // Bỏ tiêu điểm ô nhập (nút ➕ không lấy tiêu điểm khi bấm) — phím tắt bàn DJ chạy lại ngay.
+    this.ytInput.blur();
+    this.badLink = false;
+    const s = this.state();
+    this.pendingSig = s ? this.ytSig(s) : null;
+    this.pendingUntil = performance.now() + PENDING_MS;
+    this.refreshHint();
+  }
+
+  /**
+   * Phím trong ô dán link: Enter = thêm, Esc = chỉ bỏ chọn ô (không rời bàn). Chặn lan lên cửa sổ để engine / UI không
+   * coi hai phím này là phím game (mở chat, đóng bảng); phím khác là gõ chữ — phím tắt bàn DJ tự bỏ qua khi đang gõ.
+   */
+  private onInputKey(e: KeyboardEvent): void {
+    if (e.isComposing) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat) this.submitYoutube();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.ytInput.blur();
+    }
+  }
+
+  /** Hàng chờ YouTube: dựng lại cả danh sách — chỉ khi hàng chờ đổi (render() so chữ ký các key). */
+  private buildQueue(q: readonly DjYoutubeItem[]): void {
+    this.queueHead.textContent = `Hàng chờ (${q.length}/${DJ.youtube.queueMax})`;
+    this.queueList.replaceChildren();
+    this.queuePlay.length = 0;
+    if (!q.length) {
+      h('div', 'dj-yt-empty', 'Hàng chờ trống — dán link để phát ngay hoặc xếp hàng', this.queueList);
+      return;
+    }
+    q.forEach((it, i) => {
+      const row = h('div', 'dj-yt-item', '', this.queueList);
+      const name = h('span', 'dj-yt-name', `#${i + 1} ${it.title} — ${it.byName}`, row);
+      name.title = it.title;
+      const play = button('▶', 'dj-yt-btn dj-yt-play', () => this.send('yt_play', { key: it.key }), row);
+      play.title = 'Phát ngay';
+      play.classList.toggle('locked', this.shownBusy);
+      this.queuePlay.push(play);
+      const del = button('✕', 'dj-yt-btn dj-yt-del', () => this.send('yt_remove', { key: it.key }), row);
+      del.title = 'Xoá khỏi hàng chờ';
+    });
+  }
+
+  /** Dòng gợi ý dưới ô dán link — chỉ sửa DOM khi loại gợi ý đổi. */
+  private refreshHint(): void {
+    const s = this.state();
+    if (this.panel.closed || !s) return;
+    const n = s.ytQueue.length;
+    const mode: HintMode = this.badLink
+      ? 'error'
+      : this.pendingSig !== null
+        ? 'pending'
+        : n >= DJ.youtube.queueMax
+          ? 'full'
+          : this.shownBusy
+            ? 'busy'
+            : s.yt
+              ? 'queueYt'
+              : n
+                ? 'queueWait'
+                : 'now';
+    if (mode === this.shownHint) return;
+    this.shownHint = mode;
+    this.ytHint.textContent = HINT_TEXT[mode];
+    this.ytHint.classList.toggle('bad', mode === 'error' || mode === 'full');
+    this.ytHint.classList.toggle('wait', mode === 'pending');
   }
 
   /** Bấm hiệu ứng: còn nghỉ thì lắc nút báo (khỏi gửi), không thì gửi server. */

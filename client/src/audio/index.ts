@@ -57,6 +57,11 @@ interface Recorded {
   seekAt: number;
 }
 
+/**
+ * Hệ số kênh nhạc: thanh âm lượng nhạc × hệ số này mới là mức kênh nhạc thật. Xuất ra cho nguồn nhạc không đi qua Web
+ * Audio (khung YouTube ở bàn DJ tự tính setVolume) để to ngang nhạc thu sẵn.
+ */
+export const MUSIC_BUS_GAIN = 0.7;
 const LOOKAHEAD = 0.14;
 const FADE = 1.3;
 const REVERB_HEAVY = new Set<SfxId>(['bell_big', 'bell_small', 'gong', 'mo_lead', 'mo', 'bong', 'chant_hum', 'rankup']);
@@ -185,7 +190,7 @@ export function createAudio(): AudioApi {
     if (!ctx) return;
     const t = ctx.currentTime;
     master.gain.setTargetAtTime(volumes.master, t, 0.05);
-    musicBus.gain.setTargetAtTime(volumes.music * 0.7, t, 0.05);
+    musicBus.gain.setTargetAtTime(volumes.music * MUSIC_BUS_GAIN, t, 0.05);
     sfxBus.gain.setTargetAtTime(volumes.sfx, t, 0.05);
   };
 

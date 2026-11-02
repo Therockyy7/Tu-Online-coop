@@ -27,16 +27,21 @@ let markers = new Map<number, THREE.Sprite>();
 let lastBeatPulse = 0;
 
 /**
- * Lưới phách chấm lắc: bài DJ đang phát (beat0 = một phách mạnh, kể cả bài thu sẵn); nhạc dừng hoặc chưa có bàn DJ →
- * nhịp bài tổng hợp đầu, phách 0 = lúc bắt đầu lắc (giống Thi nhảy lùi về DJ.tracks[0]) — không chấm theo lưới của bài
- * đã tắt tiếng; người chơi canh theo chấm nhịp trên bảng.
+ * Lưới phách chấm lắc: bài DJ đang phát (beat0 = một phách mạnh, kể cả bài thu sẵn); nhạc dừng, đang phát video YouTube
+ * (không có số đo nhịp — nhịp trong trạng thái chỉ là danh nghĩa cho đèn) hoặc chưa có bàn DJ → nhịp bài tổng hợp đầu,
+ * phách 0 = lúc bắt đầu lắc (giống Thi nhảy lùi về DJ.tracks[0]) — không chấm theo lưới không khớp tiếng nhạc; người
+ * chơi canh theo chấm nhịp trên bảng.
  */
+function musicGrid(dj: DjPublicState | undefined): DjPublicState | null {
+  return dj?.playing && !dj.yt ? dj : null;
+}
+
 function shakeBeat0(dj: DjPublicState | undefined, shakeAt: number): number {
-  return dj?.playing ? dj.beat0 : shakeAt;
+  return musicGrid(dj)?.beat0 ?? shakeAt;
 }
 
 function shakeBpm(dj: DjPublicState | undefined): number {
-  return dj?.playing ? dj.bpm : DJ.tracks[0]!.bpm;
+  return musicGrid(dj)?.bpm ?? DJ.tracks[0]!.bpm;
 }
 
 /** Độ lệch (ms) của cú lắc lúc `now` so với phách gần nhất của lưới chấm lắc. */
@@ -137,7 +142,7 @@ function renderPanel(ctx: ClientActivityContext): void {
         for (const ing of MIXOLOGY.ingredients) el('div', 'mx-key', keys, `${ing.key} · ${ing.name}`);
       } else {
         const dj = ctx.state.activityState('dj') as DjPublicState | undefined;
-        const hint = dj?.playing ? 'đúng nhịp nhạc' : 'canh theo chấm nhịp';
+        const hint = musicGrid(dj) ? 'đúng nhịp nhạc' : 'canh theo chấm nhịp';
         el('div', 'mx-title shake', b, `🍸 LẮC! Space ${hint} (${work.deltas.length}/${MIXOLOGY.shakeBeats})`);
         el('div', `mx-beat ${performance.now() - lastBeatPulse < 120 ? 'on' : ''}`, b, '●');
       }

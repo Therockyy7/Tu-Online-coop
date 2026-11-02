@@ -44,6 +44,18 @@ export function sanitizeChat(raw: unknown): string | null {
   return [...s].slice(0, NET.chatMaxLen).join('');
 }
 
+/**
+ * Làm sạch chữ lấy từ nguồn ngoài (tên video / kênh YouTube): như tin chat, tối đa `max` ký tự (dài hơn thì cắt và thêm
+ * "…"); trả null nếu rỗng. Chỉ để hiển thị bằng textContent / canvas — không thoát HTML.
+ */
+export function sanitizeTitle(raw: unknown, max: number): string | null {
+  if (typeof raw !== 'string') return null;
+  const s = clean(raw);
+  if (!s) return null;
+  const chars = [...s];
+  return chars.length <= max ? s : `${chars.slice(0, Math.max(1, max - 1)).join('').trimEnd()}…`;
+}
+
 export function normalizeRoomCode(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const s = raw.trim().toUpperCase();
